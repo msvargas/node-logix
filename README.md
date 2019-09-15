@@ -5,7 +5,8 @@ Nodejs package to handle PLC as Micro820 of Allen Bradley, the source base code 
 
 pylogix: https://github.com/dmroeder/pylogix - changelog 08/26/19
 
-`js
+```js
+
 const comm = new PLC("192.168.100.9");
 
 comm.on("connect", async () => {
@@ -15,4 +16,5 @@ comm.on("connect", async () => {
 comm.connect().then(async () => {
   await comm.Write('TEST_BOOL',true);
 });
-`
+
+```
