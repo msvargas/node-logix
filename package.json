@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "bluebird": "^3.5.5",
+    "python-struct": "^1.1.1"
+  }
+}
