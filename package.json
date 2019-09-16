@@ -1,6 +1,20 @@
 {
+  "license": "MIT",
+  "version": "1.0.0",
+  "author": "Michael Vargas",
+  "scripts": {
+    "prettier": "prettier --write src/**/*.js examples/*.js"
+  },
   "dependencies": {
     "bluebird": "^3.5.5",
+    "is-port-reachable": "^2.0.1",
     "python-struct": "^1.1.1"
-  }
+  },
+  "devDependencies": {
+    "prettier": "^1.18.2"
+  },
+  "name": "node-logix",
+  "description": "Nodejs EthernetIP to handle PLC",
+  "main": "index.js",
+  "repository": "https://github.com/punisher97/node-logix.git"
 }

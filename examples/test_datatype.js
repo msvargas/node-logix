@@ -1,4 +1,4 @@
-const PLC = require("./src/eip");
+const PLC = require("../src/eip");
 
 const comm = new PLC("192.168.100.9");
 
@@ -27,7 +27,7 @@ async function run() {
     await comm.Write("TEST_LREAL", 17.35);
     await comm.Write("TEST_DWORD", 19);
     console.log("End test");
-    console.log(comm.KnownTags)
+    console.log(comm.KnownTags);
   } catch (error) {
     console.error(error);
   } finally {

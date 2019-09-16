@@ -48,20 +48,63 @@ const cipErrorCodes = {
 
 class ValueError extends Error {
   constructor(message) {
-    super();
+    super(message);
     this.name = "ValueError";
-    this.message = message;
   }
 }
 
-class PLCError extends Error {
+class LogixError extends Error {
   constructor(message, code) {
-    super();
-    this.name = "PLCError";
-    this.message = message;
+    super(message);
+    this.name = "LogixError";
     this.code = code || null;
   }
 }
-exports.PLCError = PLCError;
+
+class ConnectionError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ConnectionError";
+  }
+}
+
+class ConnectionTimeout extends Error {
+  constructor(message, timeout) {
+    super(message + " timeout at " + timeout + "ms");
+    this.name = "ConnectionTimeout";
+    this.timeout = timeout;
+  }
+}
+
+class DisconnectedError extends Error {
+  constructor() {
+    super("Failed to send data, PLC was disconnected or no connected yet");
+    this.name = "DisconnectedError";
+  }
+}
+
+class UnReachableError extends Error {
+  constructor(port = "", ip = "") {
+    super(ip + " IP not reachable or PLC not connected");
+    this.name = "UnReachableError";
+    if (ip !== "" && port !== "") {
+      this.ip = ip;
+      this.port = port;
+    }
+  }
+}
+
+exports.UnReachableError = UnReachableError;
+exports.DisconnectedError = DisconnectedError;
+exports.ConnectionTimeout = ConnectionTimeout;
+exports.LogixError = LogixError;
 exports.ValueError = ValueError;
+exports.ConnectionError = ConnectionError;
 exports.cipErrorCodes = cipErrorCodes;
+
+exports.default = {
+  LogixError,
+  ValueError,
+  ConnectionError,
+  cipErrorCodes
+};
