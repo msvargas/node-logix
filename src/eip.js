@@ -1,7 +1,9 @@
+"use strict";
 /**
  *
  * @author Michael Vargas - node-logix
  * (msvargas97@gmail.com)
+ * @copyright
  * source python code and lincese:
    Originally created by Burt Peterson
    Updated and maintained by Dustin Roeder (dmroeder@gmail.com) 
@@ -17,20 +19,26 @@
    limitations under the License.
  */
 const { Socket, isIP } = require("net");
-const { unpackFrom, pack } = require("python-struct");
-const Promise = require("bluebird");
 const { EventEmitter } = require("events");
+const Promise = require("bluebird");
+const { unpackFrom, pack } = require("python-struct");
 const isPortReachable = require("is-port-reachable");
+
 const { GetDevice, GetVendor, LGXDevice } = require("./lgxDevice");
 const context_dict = require("./context");
+const pinMapping = require("./pin-mapping.json"); // ping mapping to use digitalWrite... as Arduino
 const {
   ValueError,
   LogixError,
-  cipErrorCodes,
   ConnectionError,
   ConnectionTimeout,
   DisconnectedError,
-  UnReachableError
+  UnReachableError,
+  RegisterSessionError,
+  ConnectionLostError,
+  ForwarOpenError,
+  cipErrorCodes,
+  PinMappingError
 } = require("./error");
 
 function randrange(max) {
@@ -56,7 +64,7 @@ const CIPTypes = {
 
 class PLC extends EventEmitter {
   /**
-   *
+   * @description Create instace of PLC using EIP (EthernetIP) protocol
    * @param {String|Object} IPAddress IP Address of PLC alternative pass Object with all options
    * @param {Object} options Options to set if IPAddress typeof string
    */
@@ -87,9 +95,8 @@ class PLC extends EventEmitter {
     this.autoConnect = true;
     this.requestTimeout = 1000;
     this.connectionTimeout = 5000;
-    this.autoClose = true;
-    this.pingInterval = 10000;
-    this.pingTimeout = 25000;
+    this.pingInterval = 30000;
+    this.timeoutInactivity = 20000;
     Object.assign(this, PLC.defaultOptions, options);
     this.SessionRegistered = false;
     this.Socket = new Socket();
@@ -121,10 +128,10 @@ class PLC extends EventEmitter {
     return !this.connected;
   }
   /**
-   * @property to get socket address
+   * @property check if reconnecting PLC
    */
-  get address() {
-    return { addres: this.IPAddress, port: this.Port };
+  get reconnected() {
+    return !!this._reconnected;
   }
   /**
    * @property to get socket client
@@ -139,18 +146,156 @@ class PLC extends EventEmitter {
     return this.OTNetworkConnectionID;
   }
   /**
-   * @private initialize autoConnect and autoClose functions
+   * @description custom pin mapping to use with digitalWrite, digitalRead, analogWrite and analogRead functions
+   * @property set
+   * @param {Object} pinout
+   * @example if Micro800 == true use pin mapping =>
+   * {
+    "digital" : {
+        "output": "_IO_EM_DO_{dd}",
+        "input": "_IO_EM_DI_{dd}"
+    },
+    "analog" : {
+        "input" : "_IO_EM_AI_{dd}",
+        "output" : "_IO_EM_AO_{dd}"
+    }
+  }`
+   */
+  set pingMapping(pinout) {
+    this._pingMapping = pinout;
+  }
+  /**
+   * @property get current pin mapping
+   */
+  get pingMapping() {
+    return this._pingMapping;
+  }
+  /**
+   * @property get function to replace pin
+   */
+  get replacePin() {
+    return this._replacePin.bind(this);
+  }
+  /**
+   * @property set function to replace pin, with parameters : (inputMapping,pin)
+   */
+  set replacePin(newReplacePin) {
+    this._replacePin = newReplacePin;
+  }
+  /**
+   * @private
+   * @description initialize autoConnect
    */
   __init__() {
     if (!!this.autoConnect) this._connect();
-    if (!!this.autoClose) {
+    if (this.autoConnect) {
       process.once("exit", code => {
         this.close(0);
       });
     }
+    if (this.Micro800) {
+      this._pingMapping = pinMapping["Micro800"];
+      this.replacePin = _replacePin;
+    }
   }
   /**
-   * Read tag in PLC
+   * @description to get socket address
+   */
+  address() {
+    return {
+      addres: this.Socket.remoteAddress,
+      port: this.Socket.remotePort,
+      family: this.Socket.remoteFamily
+    };
+  }
+  /**
+   * @description write to output using pin mapping
+   * @param {Number} pin
+   * @param {Number|Boolean}} value
+   */
+  digitalWrite(pin, value, options) {
+    return Promise.try(() => {
+      return this._getPinMapping(
+        this._pingMapping["digital"]["output"],
+        String(pin)
+      ).then(tag => {
+        return this._writeTag(tag, Number(value), options);
+      });
+    });
+  }
+  /**
+   * @description read digital output using pin mapping
+   * @param {Number} pin
+   */
+  digitalOutRead(pin, options) {
+    return Promise.try(() => {
+      return this._getPinMapping(
+        this._pingMapping["digital"]["output"],
+        String(pin)
+      ).then(tag => {
+        return this._readTag(tag, options);
+      });
+    });
+  }
+  /**
+   * @description read digital input using pin mapping
+   * @param {Number} pin
+   */
+  digitalRead(pin, options) {
+    return Promise.try(() => {
+      return this._getPinMapping(
+        this._pingMapping["digital"]["input"],
+        String(pin)
+      ).then(tag => {
+        return this._readTag(tag, options);
+      });
+    });
+  }
+  /**
+   * @description write analog output pin using pin mapping
+   * @param {Number} pin
+   * @param {Number} value
+   */
+  analogWrite(pin, value, options) {
+    return Promise.try(() => {
+      return this._getPinMapping(
+        this._pingMapping["analog"]["output"],
+        String(pin)
+      ).then(tag => {
+        return this._writeTag(tag, Number(value), options);
+      });
+    });
+  }
+  /**
+   * @description read analog output pin using pin mapping
+   * @param {Number} pin
+   */
+  analogOutRead(pin, options) {
+    return Promise.try(() => {
+      return this._getPinMapping(
+        this._pingMapping["analog"]["output"],
+        String(pin)
+      ).then(tag => {
+        return this._readTag(tag, options);
+      });
+    });
+  }
+  /**
+   * @description read analog input pin using pin mapping
+   * @param {Number} pin
+   */
+  analogRead(pin, options) {
+    return Promise.try(() => {
+      return this._getPinMapping(
+        this._pingMapping["analog"]["input"],
+        String(pin)
+      ).then(tag => {
+        return this._readTag(tag, options);
+      });
+    });
+  }
+  /**
+   * @description Read tag in PLC
    * @param {String} tag Tag name to read
    * @param {Object} options { `count` : Num elements of value,  `dataType` : Data Type check `this.CIPDataType`}
    */
@@ -168,7 +313,8 @@ class PLC extends EventEmitter {
   }
 
   /**
-   * @private read tag function low level
+   * @description  Read tag function low level
+   * @private
    * @param {String} tag TagName
    * @param {Number} elements Num elements
    * @param {Number} dt DataType
@@ -185,7 +331,7 @@ class PLC extends EventEmitter {
           // processes the read request
           this.Offset = 0;
           const [t, b, i] = _parseTagName(tag, 0);
-          return this._initial_read(t, b, dt).then(() => [t, b, i]);
+          return this._initial_read(b, dt).then(() => [t, b, i]);
         })
         .spread((t, b, i) => {
           const datatype = this.KnownTags[b][0];
@@ -248,7 +394,7 @@ class PLC extends EventEmitter {
     return Promise.try(() => {
       if (Array.isArray(tag)) {
       } else {
-        return this._writeTag(tag, value, dataType, emitEvent);
+        return this._writeTag(tag, value, options);
       }
     });
   }
@@ -263,67 +409,83 @@ class PLC extends EventEmitter {
    */
   _writeTag(tag, value, options = {}) {
     const { dataType: dt, emitEvent, timeout = this.requestTimeout } = options;
-    return Promise.try(async () => {
-      /**
-       * Processes the write request
-       */
+    return Promise.try(() => {
       this.Offset = 0;
       const writeData = [];
-      await this._waitConnect();
-
-      const [t, b, i] = _parseTagName(tag, 0);
-      await this._initial_read(t, b, dt);
-
-      const dataType = this.KnownTags[b][0];
-      // check if values passed were a list
-      if (Array.isArray(value)) {
-      } else {
-        value = [value];
-      }
-      //console.log("value:", value);
-      for (const v of value) {
-        if (dataType == 202 || dataType == 203) {
-          writeData.push(Number(v));
-        } else if (dataType == 160 || dataType == 218) {
-          writeData.push(this._makeString(v));
-        } else {
-          writeData.push(Number(v));
-        }
-      }
-      let tagData, writeRequest;
-
-      if (BitofWord(tag)) {
-        tagData = this._buildTagIOI(tag, false);
-        writeRequest = this._addWriteBitIOI(tag, tagData, writeData, dataType);
-      } else if (dataType == 211) {
-        tagData = this._buildTagIOI(tag, true);
-        writeRequest = this._addWriteBitIOI(tag, tagData, writeData, dataType);
-      } else {
-        tagData = this._buildTagIOI(tag, false);
-        writeRequest = this._addWriteIOI(tagData, writeData, dataType);
-      }
-      //console.log("writeRequest",JSON.stringify( writeRequest.toString("utf8")),writeRequest)
-
-      const eipHeader = this._buildEIPHeader(writeRequest);
-      const [status, _] = await this._getBytes(eipHeader);
-      //console.log("retData:", retData, retData.length, status);
-      if (status != 0) {
-        let err;
-        if (status in cipErrorCodes) {
-          err = cipErrorCodes[status];
-        } else {
-          err = `Unknown error ${status}`;
-        }
-        throw new LogixError(`Write failed: ${err}`, status);
-      }
-      if (!!emitEvent && value !== this._tagValuesEvent[tag]) {
-        this.emit("change", tag, value); // local global event
-        this.emit(tag, value); // specific tag event
-        this._tagValuesEvent[tag] = value;
-      }
+      return this._waitConnect()
+        .then(() => {
+          const b = _parseTagName(tag, 0)[1];
+          return this._initial_read(b, dt).then(() => b);
+        })
+        .then(b => {
+          /**
+           * Processes the write request
+           */
+          const dataType = this.KnownTags[b][0];
+          // check if values passed were a list
+          if (Array.isArray(value)) {
+          } else {
+            value = [value];
+          }
+          //console.log("value:", value);
+          for (const v of value) {
+            if (dataType == 202 || dataType == 203) {
+              writeData.push(Number(v));
+            } else if (dataType == 160 || dataType == 218) {
+              writeData.push(this._makeString(v));
+            } else {
+              writeData.push(Number(v));
+            }
+          }
+          let tagData, writeRequest;
+          if (BitofWord(tag)) {
+            tagData = this._buildTagIOI(tag, false);
+            writeRequest = this._addWriteBitIOI(
+              tag,
+              tagData,
+              writeData,
+              dataType
+            );
+          } else if (dataType == 211) {
+            tagData = this._buildTagIOI(tag, true);
+            writeRequest = this._addWriteBitIOI(
+              tag,
+              tagData,
+              writeData,
+              dataType
+            );
+          } else {
+            tagData = this._buildTagIOI(tag, false);
+            writeRequest = this._addWriteIOI(tagData, writeData, dataType);
+          }
+          //console.log("writeRequest",JSON.stringify( writeRequest.toString("utf8")),writeRequest)
+          return this._getBytes(this._buildEIPHeader(writeRequest));
+        })
+        .spread(status => {
+          //console.log("retData:", retData, retData.length, status);
+          if (status != 0) {
+            let err;
+            if (status in cipErrorCodes) {
+              err = cipErrorCodes[status];
+            } else {
+              err = `Unknown error ${status}`;
+            }
+            throw new LogixError(`Write failed: ${err}`, status);
+          }
+          if (!!emitEvent && value !== this._tagValuesEvent[tag]) {
+            this.emit("change", tag, value); // local global event
+            this.emit(tag, value); // specific tag event
+            this._tagValuesEvent[tag] = value;
+          }
+        });
     }).timeout(timeout, `Timeout to write tag:${tag} with value: ${value}`);
   }
-
+  /**
+   * @private
+   * @param {Buffer} tagIOI
+   * @param {Array} writeData
+   * @param {Number} dataType
+   */
   _addWriteIOI(tagIOI, writeData, dataType) {
     //console.log('tagIOI',tagIOI, 'writeData', writeData,dataType)
     // Add the write command stuff to the tagIOI
@@ -377,13 +539,17 @@ class PLC extends EventEmitter {
     }
     return CIPWriteRequest;
   }
-
+  /**
+   * @private
+   * @description This will add the bit level request to the tagIOI
+                  Writing to a bit is handled in a different way than
+                  other writes
+   * @param {String} tag 
+   * @param {Buffer} tagIOI 
+   * @param {Array} writeData 
+   * @param {Number} dataType 
+   */
   _addWriteBitIOI(tag, tagIOI, writeData, dataType) {
-    /**
-     *         This will add the bit level request to the tagIOI
-        Writing to a bit is handled in a different way than
-        other writes
-     */
     const elementSize = this.CIPTypes[dataType][0],
       dataLen = writeData.length,
       NumberOfBytes = elementSize * dataLen,
@@ -420,13 +586,15 @@ class PLC extends EventEmitter {
     }
     return writeIOI;
   }
-
-  _initial_read(tag, baseTag, dt) {
-    return Promise.try(() => {
-      /**
-     *         Store each unique tag read in a dict so that we can retreive the
+  /**
+   * @private
+   * @description Store each unique tag read in a dict so that we can retreive the
         data type or data length (for STRING) later
-     */
+   * @param {String} baseTag 
+   * @param {Number} dt dataType of tag 
+   */
+  _initial_read(baseTag, dt) {
+    return Promise.try(() => {
       if (baseTag in this.KnownTags) return true;
       if (dt) {
         this.KnownTags[baseTag] = [dt, 0];
@@ -452,10 +620,13 @@ class PLC extends EventEmitter {
           } else {
             err = "Unknown error ".concat(status);
           }
+          // lost connection
           if (status === 7) {
-            err = new ConnectionError(err);
+            err = new ConnectionLostError(err);
             this.emit("connect_error", err);
-            this.close();
+            this.Socket.destroy();
+          } else if (status === 1) {
+            err = new ConnectionError(err);
           } else {
             err = new LogixError(`Failed to read tag: ${err}`, status);
           }
@@ -465,13 +636,15 @@ class PLC extends EventEmitter {
       });
     });
   }
-
+  /**
+   * @private
+   * @description  Gets the replies from the PLC
+                  In the case of BOOL arrays and bits of a word, we do some reformating
+   * @param {String} tag 
+   * @param {Number} elements 
+   * @param {Buffer|Array} data 
+   */
   async _parseReply(tag, elements, data) {
-    /*
-            Gets the replies from the PLC
-        In the case of BOOL arrays and bits of
-            a word, we do some reformating
-           */
     const [tagName, basetag, index] = _parseTagName(tag, 0);
     const datatype = this.KnownTags[basetag][0],
       bitCount = this.CIPTypes[datatype][0] * 8;
@@ -496,9 +669,14 @@ class PLC extends EventEmitter {
       return vals;
     }
   }
-
+  /**
+   * @property
+   * @description Convert words to a list of true/false
+   * @param {String} tag
+   * @param {*} value
+   * @param {Number} count
+   */
   _wordsToBits(tag, value, count = 0) {
-    // Convert words to a list of true/false
     const [tagName, basetag, index] = _parseTagName(tag, 0),
       datatype = this.KnownTags[basetag][0],
       bitCount = this.CIPTypes[datatype][0] * 8;
@@ -519,9 +697,14 @@ class PLC extends EventEmitter {
     }
     return ret.slice(bitPos, bitPos + count);
   }
-
+  /**
+   * @private
+   * @description Gather up all the values in the reply/replies
+   * @param {String} tag
+   * @param {Number} elements
+   * @param {*} data
+   */
   async _getReplyValues(tag, elements, data) {
-    //         Gather up all the values in the reply/replies
     let status = unpackFrom("<B", data, true, 48)[0];
     elements = parseInt(elements, 10);
     if (status == 0 || status == 6) {
@@ -588,13 +771,14 @@ class PLC extends EventEmitter {
       throw new LogixError(`Failed to read tag: ${tag} - ${err}`, status);
     }
   }
-
-  _buildEIPHeader(tagIOI) {
-    /**
-     *         The EIP Header contains the tagIOI and the
+  /**
+   * @private
+   * @description  The EIP Header contains the tagIOI and the
         commands to perform the read or write.  This request
         will be followed by the reply containing the data
-     */
+   * @param {Buffer} tagIOI 
+   */
+  _buildEIPHeader(tagIOI) {
     if (this.ContextPointer === 155) this.ContextPointer = 0;
     const EIPConnectedDataLength = tagIOI.length + 2,
       EIPCommand = 0x70,
@@ -639,21 +823,23 @@ class PLC extends EventEmitter {
     //console.log(EIPHeaderFrame.length, "tag length:", tagIOI.length);
     return Buffer.concat([EIPHeaderFrame, tagIOI]);
   }
-
-  _buildTagIOI(tagName, isBoolArray) {
-    /**
- *         The tag IOI is basically the tag name assembled into
+  /**
+   * @private
+   * @description The tag IOI is basically the tag name assembled into
         an array of bytes structured in a way that the PLC will
         understand.  It's a little crazy, but we have to consider the
         many variations that a tag can be:
-
+        @example
         TagName (DINT)
         TagName.1 (Bit of DINT)
         TagName.Thing (UDT)
         TagName[4].Thing[2].Length (more complex UDT)
         We also might be reading arrays, a bool from arrays (atomic), strings.
             Oh and multi-dim arrays, program scope tags...
- */
+   * @param {String} tagName 
+   * @param {Boolean} isBoolArray 
+   */
+  _buildTagIOI(tagName, isBoolArray) {
     let RequestTagData = Buffer.from([]);
     const tagArray = tagName.split(".");
     tagArray.forEach((_tag, i) => {
@@ -735,11 +921,13 @@ class PLC extends EventEmitter {
     });
     return RequestTagData;
   }
-
+  /**
+   * @private
+   * @description Add the read service to the tagIOI
+   * @param {Buffer} tagIOI
+   * @param {Number} elements
+   */
   _addReadIOI(tagIOI, elements) {
-    /**
-     *         Add the read service to the tagIOI
-     */
     const RequestService = 0x4c,
       RequestPathSize = Math.round(tagIOI.length / 2),
       readIOI = Buffer.concat([
@@ -749,9 +937,13 @@ class PLC extends EventEmitter {
       ]);
     return readIOI;
   }
-
+  /**
+   * @private
+   * @description  Add the partial read service to the tag IOI
+   * @param {Buffer} tagIOI
+   * @param {Number} elements
+   */
   _addPartialReadIOI(tagIOI, elements) {
-    // Add the partial read service to the tag IOI
     const RequestService = 0x52,
       RequestPathSize = Math.round(tagIOI.length / 2),
       readIOI = Buffer.concat([
@@ -762,9 +954,11 @@ class PLC extends EventEmitter {
       ]);
     return readIOI;
   }
-
+  /**
+   * @private
+   * @description Register our CIP connection
+   */
   _buildRegisterSession() {
-    // Register our CIP connection
     const EIPCommand = 0x0065;
     const EIPLength = 0x0004;
     const EIPSessionHandle = this.SessionHandle;
@@ -787,6 +981,10 @@ class PLC extends EventEmitter {
     );
     return result;
   }
+  /**
+   * @private
+   * @description Unregister CIP connection
+   */
   _buildUnregisterSession() {
     const EIPCommand = 0x66;
     const EIPLength = 0x0;
@@ -804,26 +1002,30 @@ class PLC extends EventEmitter {
       EIPOptions
     );
   }
-
+  /**
+   * @private
+   * @description  Assemble the forward open packet
+   */
   _buildForwardOpenPacket() {
-    /* Assemble the forward open packet */
     const forwardOpen = this._buildCIPForwardOpen();
     const rrDataHeader = this._buildEIPSendRRDataHeader(forwardOpen.length);
     return Buffer.concat([rrDataHeader, forwardOpen]);
   }
-
+  /**
+   * @private
+   * @description  Assemble the forward close packet
+   */
   _buildForwardClosePacket() {
-    /*  Assemble the forward close packet */
     const forwardClose = this._buildForwardClose();
     const rrDataHeader = this._buildEIPSendRRDataHeader(forwardClose.length);
     return Buffer.concat([rrDataHeader, forwardClose]);
   }
-
-  _buildCIPForwardOpen() {
-    /**
-        Forward Open happens after a connection is made,
+  /**
+   * @private
+   * @description Forward Open happens after a connection is made,
         this will sequp the CIP connection parameters
-     */
+   */
+  _buildCIPForwardOpen() {
     let CIPPathSize = 0x02,
       CIPClassType = 0x20,
       CIPClass = 0x06,
@@ -891,11 +1093,10 @@ class PLC extends EventEmitter {
     );
     return Buffer.concat([ForwardOpen, CIPConnectionPath]);
   }
-
+  /**
+   * @description Forward Close packet for closing the connection
+   */
   _buildForwardClose() {
-    /**
-     * Forward Close packet for closing the connection
-     */
     const CIPService = 0x4e,
       CIPPathSize = 0x02,
       CIPClassType = 0x20,
@@ -935,7 +1136,10 @@ class PLC extends EventEmitter {
     );
     return Buffer.concat([ForwardClose, CIPConnectionPath]);
   }
-
+  /**
+   *
+   * @param {*} frameLen
+   */
   _buildEIPSendRRDataHeader(frameLen) {
     const EIPCommand = 0x6f,
       EIPLength = 16 + frameLen,
@@ -968,17 +1172,33 @@ class PLC extends EventEmitter {
       EIPItem2Length
     );
   }
+  /**
+   * @public
+   * @description Connect to PLC high-level
+   */
   connect() {
     return Promise.try(() => {
       if (this.connecting)
-        new Error("Fail to connect, status while connecting socket");
+        throw new ConnectionError("Failed to connect while connecting");
+      this._reconnected = undefined;
       return this._connect();
     });
   }
-
+  /**
+   * @description Close current connection
+   * @param {Number} timeout
+   */
+  disconnect(timeout) {
+    return this.close(timeout);
+  }
+  /**
+   * @private
+   * @description close current connection
+   * @param {Number} timeout
+   */
   close(timeout = 1000) {
-    return Promise.try(async () => {
-      await this._closeConnection();
+    return Promise.try(() => {
+      return this._closeConnection();
     })
       .timeout(timeout)
       .catch(e => {
@@ -990,27 +1210,36 @@ class PLC extends EventEmitter {
         return e;
       });
   }
-
+  /**
+   * @private
+   * @description Send CIP packet data to PLC
+   * @param {Buffer|Uint8Array} data
+   */
   _send(data) {
     return Promise.try(() => {
-      if (this.Socket.destroyed) {
+      if (this.Socket.destroyed)
         if (!!this._isReachable) throw new DisconnectedError();
-        else return;
-      }
+        else throw new ConnectionLostError();
+
       return new Promise((resolve, reject) => {
         this.Socket.write(data, error => {
-          if (error)
-            reject(
+          if (error) {
+            error =
               error.name.indexOf("[ERR_STREAM_DESTROYED]") > -1
                 ? new DisconnectedError()
-                : error
-            );
-          else resolve(true);
+                : error;
+            this.emit("error", error);
+            reject(error);
+          } else resolve(true);
         });
       });
     });
   }
-
+  /**
+   * @private
+   * @description send and get response request CIP
+   * @param {Buffer|Uint8Array} data
+   */
   _getBytes(data) {
     return Promise.try(() => {
       return this._send(data)
@@ -1030,28 +1259,37 @@ class PLC extends EventEmitter {
         });
     });
   }
-
+  /**
+   * @private
+   * @description Get receive data
+   */
   recv_data() {
     return new Promise(resolve => {
       this.Socket.once("data", resolve);
     });
   }
-
+  /**
+   * @private
+   * @description close connection low level private function
+   */
   async _closeConnection() {
-    if (this.disconnected) return;
+    if (this.disconnected || this.closing) return;
+    this.closing = true;
     this.SocketConnected = false;
     const close_packet = this._buildForwardClosePacket();
     const unreg_packet = this._buildUnregisterSession();
     try {
       await this._send(close_packet);
       await this._send(unreg_packet);
-      this.Socket.destroy();
       this._iv && clearInterval(this._iv);
-      this.emit("disconnect", "close connection");
+      this._iv = undefined;
+      this._reconnected = undefined;
     } catch (error) {
-      this.Socket.destroy();
     } finally {
+      this.Socket.destroy();
       this.OTNetworkConnectionID = undefined;
+      this.closing = false;
+      this.emit("disconnect", "close connection");
     }
   }
   /**
@@ -1064,14 +1302,22 @@ class PLC extends EventEmitter {
       this._isReachable = await isPortReachable(this.Port, {
         host: this.IPAddress
       });
-      const e = new UnReachableError();
-      if (!this._isReachable && this.connected) this.Socket.destroy(e);
       this._checking = false;
       return this._isReachable;
     });
   }
   /**
-   * @protected simple async connect
+   * @description change timeout innactivity
+   */
+  setTimeoutInactivity(timeout) {
+    if (typeof timeout !== "number")
+      throw TypeError("Timeout mustbe a number, 0 is disable");
+    this.timeoutInactivity = timeout;
+    this.Socket.setTimeout(timeout);
+  }
+  /**
+   * @protected
+   * @description simple async connect
    */
   _connect() {
     if (
@@ -1079,30 +1325,39 @@ class PLC extends EventEmitter {
       this.Socket.connecting
     )
       return Promise.resolve();
+
     return Promise.try(() => {
-      if (this.ConnectionSize < 500 || this.ConnectionSize > 4000)
-        throw new ValueError(
-          "ConnectionSize must be an integer between 500 and 4000"
-        );
-      this.Socket = new Socket();
-      this.Socket.setKeepAlive(true);
-      this.Socket.setNoDelay(true);
-      return new Promise((resolve, reject) => {
-        this.Socket.setTimeout(this.connectionTimeout, () => {
-          this.Socket.destroy();
-          this._checkPortReachable().then(isReachable => {
-            if (!isReachable)
-              reject(new UnReachableError(this.Port, this.IPAddress));
-            else
-              reject(
-                new ConnectionTimeout(
-                  "Fail to connect timeout connection with " + this.IPAddress,
-                  this.connectionTimeout
-                )
-              );
+      return this._checkPortReachable().then(isReachable => {
+        if (!isReachable) {
+          if (!this.Socket.destroyed) this.Socket.destroy();
+          throw new UnReachableError(this.Port, this.IPAddress);
+        } else {
+          if (this.ConnectionSize < 500 || this.ConnectionSize > 4000)
+            throw new ValueError(
+              "ConnectionSize must be an integer between 500 and 4000"
+            );
+          this.Socket = new Socket();
+          this.Socket.setKeepAlive(true);
+          this.Socket.setNoDelay(true);
+          return new Promise((resolve, reject) => {
+            this.Socket.setTimeout(this.connectionTimeout, () => {
+              this.Socket.destroy();
+              this._checkPortReachable().then(isReachable => {
+                if (!isReachable)
+                  reject(new UnReachableError(this.Port, this.IPAddress));
+                else
+                  reject(
+                    new ConnectionTimeout(
+                      "Fail to connect timeout connection with " +
+                        this.IPAddress,
+                      this.connectionTimeout
+                    )
+                  );
+              });
+            });
+            this.Socket.connect(this.Port, this.IPAddress, resolve);
           });
-        });
-        this.Socket.connect(this.Port, this.IPAddress, resolve);
+        }
       });
     })
       .then(() => this._send(this._buildRegisterSession()))
@@ -1114,7 +1369,7 @@ class PLC extends EventEmitter {
             this.SessionHandle = unpackFrom("<I", retData, false, 4)[0];
             return true;
           } else {
-            throw new ConnectionError("Failed to register session");
+            throw new RegisterSessionError();
           }
         });
       })
@@ -1124,51 +1379,50 @@ class PLC extends EventEmitter {
       .spread((retData, sts) => {
         return Promise.try(() => {
           if (!sts) {
+            this.Socket.setTimeout(this.timeoutInactivity || 0);
             this.OTNetworkConnectionID = unpackFrom("<I", retData, true, 44)[0];
             this.Socket.once("timeout", () => {
               this.Socket.end();
-              //this.Socket.destroy("timeout disconnection");
+              this.emit("inactivity");
+              this._iv = setInterval(() => {
+                this._checkPortReachable().then(isReachable => {
+                  if (!isReachable && this.SocketConnected) {
+                    this.SocketConnected = false;
+                    this.emit("disconnect", "refused unreachable");
+                  } else if (isReachable && !this.SocketConnected) {
+                    this.emit("reachable");
+                  }
+                });
+              }, this.pingInterval);
             });
             this.Socket.once("error", error => {
               this.Socket.destroy();
-              if (!!error)
+              if (!!error && error.code.indexOf("ECONNRESET") === -1) {
                 this.emit(
                   "disconnect",
                   error instanceof Error ? error.message : error
                 );
-              console.log("error:", error);
+              }
             });
-            this.Socket.once("close", had_error => {
-              console.log("close:", had_error);
-              // this._connect();
+
+            this.Socket.once("end", () => {
+              this.SocketConnected = false;
+              this.emit("disconnect", "disconnected from PLC");
             });
-            this.Socket.setTimeout(this.pingTimeout);
+
             this.SocketConnected = true;
-            if (!this._iv) {
-              this._iv = setInterval(() => {
-                return this._checkPortReachable().then(isReachable => {
-                  if (!isReachable) {
-                    this.SocketConnected = false;
-                    this.emit(
-                      "error",
-                      new UnReachableError(this.Port, this.IPAddress)
-                    );
-                  }
-                });
-                //console.log(this.connected, this.connecting);
-              }, this.pingInterval);
-              this.emit("connect");
-            }
+            if (!this._reconnected) this.emit("connect");
+            else this.emit("reconnect");
             return true;
           } else {
             this.Socket.destroy();
-            throw new ConnectionError("Forward open Failed");
+            throw new ForwarOpenError();
           }
         });
       })
       .catch(error => {
         this.SocketConnected = false;
-        this.emit("connect_error", error);
+        if (!this._reconnected) this.emit("connect_error", error);
         return error;
       });
   }
@@ -1178,15 +1432,26 @@ class PLC extends EventEmitter {
    */
   _waitConnect() {
     return Promise.try(() => {
-      if (this.connected) return true;
-      else if (this.connecting)
-        return Promise.delay(10).then(() => this._waitConnect());
-      else if (!this.connected) {
-        return this._connect();
-      }
+      return new Promise((resolve, reject) => {
+        if (this.connected) return resolve(true);
+        else if (this.connecting)
+          return this.once(
+            this._reconnected ? "reconnect" : "connect",
+            resolve
+          );
+        else {
+          return this._connect()
+            .then(resolve)
+            .catch(reject);
+        }
+      });
     });
   }
-
+  /**
+   * @private
+   * @description get packet string to send CIP data
+   * @param {String} string
+   */
   _makeString(string) {
     const work = [];
     let temp = "";
@@ -1202,13 +1467,31 @@ class PLC extends EventEmitter {
     }
     return work;
   }
+  /**
+   * @prinvate
+   * @description check valid mapping
+   */
+  _getPinMapping(str, pin) {
+    return Promise.try(() => {
+      if (!this._replacePin || !this._pingMapping)
+        throw new PinMappingError(
+          "invalid replacePin or pingMaping, please check, this.replacePin or this.pinMapping"
+        );
+      try {
+        return this.replacePin(str, pin);
+      } catch (error) {
+        throw error;
+      }
+    });
+  }
 }
 
+/**
+ * @description Takes a tag name, gets the bit from the end of it, then returns that bits value
+ * @param {String} tag
+ * @param {*} value
+ */
 function _getBitOfWord(tag, value) {
-  /**
-   *     Takes a tag name, gets the bit from the end of
-    it, then returns that bits value
-   */
   const split_tag = tag.split("."),
     stripped = split_tag[split_tag.length - 1];
   let returnValue;
@@ -1227,25 +1510,29 @@ function _getBitOfWord(tag, value) {
   }
   return returnValue;
 }
-
-function _getWordCount(start, length, bits) {
-  /**
-   *     Get the number of words that the requested
+/**
+ * @description Get the number of words that the requested
     bits would occupy.  We have to take into account
     how many bits are in a word and the fact that the
-    number of requested bits can span multipe words.
-   */
+    number of requested bits can span multipe words
+ * @param {Number} start 
+ * @param {Number} length 
+ * @param {Number} bits 
+ */
+function _getWordCount(start, length, bits) {
   const newStart = start % bits;
   const newEnd = newStart + length;
   const totalWords = (newEnd - 1) / bits;
   return totalWords + 1;
 }
 
-function _parseTagName(tag, offset) {
-  /**
-   *     parse the packet to get the base tag name
+/**
+ * @description parse the packet to get the base tag name
     the offset is so that we can increment the array pointer if need be
-   */
+ * @param {String} tag 
+ * @param {Number} offset 
+ */
+function _parseTagName(tag, offset) {
   let bt = tag,
     ind = 0;
   try {
@@ -1268,27 +1555,32 @@ function _parseTagName(tag, offset) {
   }
 }
 
-function BitofWord(tag) {
-  /*Test if the user is trying to write to a bit of a word
+/**
+ * @description Test if the user is trying to write to a bit of a word
     ex. Tag.1 returns true (Tag = DINT)
-    */
+ * @param {String} tag 
+ */
+function BitofWord(tag) {
   const s = tag.split(".");
   if (/^\d+$/.test(s[s.length - 1])) return true;
   else return false;
 }
 
+/**
+ * @description Returns the specific bit of a words value
+ * @param {Number} value
+ * @param {Number} bitno
+ */
 function BitValue(value, bitno) {
-  /*
-    Returns the specific bit of a words value
-    */
   const mask = 1 << bitno;
   if (value & mask) return true;
   else return false;
 }
-
-6;
-// https://stackoverflow.com/questions/15987750/equivalent-of-inet-aton-in-mongodb
-// ip example: 192.168.2.1
+/**
+ * @copyright https://stackoverflow.com/questions/15987750/equivalent-of-inet-aton-in-mongodb
+ * @example ip example: 192.168.2.1
+ * @param {String} ip
+ */
 function inet_aton(ip) {
   var a = new Array();
   a = ip.split(".");
@@ -1300,7 +1592,10 @@ function inet_aton(ip) {
   );
 }
 
-// num example: 3232236033
+/**
+ * @example num example: 3232236033
+ * @param {Number} n
+ */
 function inet_ntoa(n) {
   var a = ((n >> 24) & 0xff) >>> 0;
   var b = ((n >> 16) & 0xff) >>> 0;
@@ -1309,11 +1604,11 @@ function inet_ntoa(n) {
   return a + "." + b + "." + c + "." + d;
 }
 
+/**
+ * @description we're going to take the packet and parse all the data that is in it.
+ * @param {Buffer|Array} data
+ */
 function _parseIdentityResponse(data) {
-  /**
-   *     # we're going to take the packet and parse all
-    #  the data that is in it.
-   */
   const resp = new LGXDevice();
   resp.Length = unpackFrom("<H", data, true, 28)[0];
   resp.EncapsulationVersion = unpackFrom("<H", data, true, 30)[0];
@@ -1358,17 +1653,36 @@ function LgxTag() {
   this.Size = 0x00;
 }
 
+/**
+ * replace pin mapping
+ */
+function _replacePin(str = "", pin) {
+  if (typeof str !== "string")
+    throw new TypeError("Pin must be a string not a " + typeof str);
+  if (typeof pin === "string" && !/\d{1,}/.test(pin))
+    throw new TypeError("Pin must has number to assing pin value: " + pin);
+  const match = str.match(/{(d+)}/);
+  if (match === null)
+    throw new PinMappingError(`Replace: ${str} no match with {d} or {dd}`);
+  if (match.index > 0) {
+    return str.replace(match[0], String(pin).padStart(match[1].length, "0"));
+  }
+  return str;
+}
+
 PLC.defaultOptions = {
   Micro800: true,
   Port: 44818,
   requestTimeout: 1000,
   connectionTimeout: 5000,
-  autoConnect: false,
-  autoClose: true,
+  timeoutInactivity: 20000,
   pingInterval: 10000,
-  pingTimeout: 25000
+  autoConnect: true
 };
 
+/**
+ * @description get CIPTypes number foreach avaible dataType
+ */
 PLC.CIPTypes = Object.keys(CIPTypes)
   .map(key => ({ [CIPTypes[key][1]]: key }))
   .reduce(function(result, item) {
@@ -1376,8 +1690,23 @@ PLC.CIPTypes = Object.keys(CIPTypes)
     result[key] = parseInt(item[key]);
     return result;
   }, {});
-
+/**
+ * @description CIP codes
+ */
 PLC.cipErrorCodes = cipErrorCodes;
+/**
+ * @description Instance Errors
+ */
+PLC.TimeoutError = Promise.TimeoutError;
+PLC.LogixError = LogixError;
+PLC.ValueError = ValueError;
+PLC.ConnectionError = ConnectionError;
+PLC.ConnectionTimeout = ConnectionTimeout;
+PLC.UnReachableError = UnReachableError;
+PLC.ConnectionLostError = ConnectionLostError;
+PLC.ForwarOpenError = ForwarOpenError;
+PLC.RegisterSessionError = RegisterSessionError;
+PLC.DisconnectedError = DisconnectedError;
 
 module.exports = PLC;
 exports.default = PLC;

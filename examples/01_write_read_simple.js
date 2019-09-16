@@ -1,26 +1,8 @@
-node-logix
-============
+/**
+ * The simplest example of writing and reading a tag from a PLC
+ */
 
-Nodejs package to handle PLC as Micro820 of Allen Bradley, the source base code original written in Python language and port to nodejs.
-
-pylogix: https://github.com/dmroeder/pylogix - changelog 08/26/19
-
-## Install package
-
-```
-  npm install node-logix
-```
-
-or
-
-```
-  yarn add node-logix
-```
-
-## Example with events, read and write tags
-
-```js
-const PLC = require("node-logix");
+const PLC = require("../index");
 
 const comm = new PLC("192.168.100.9");
 
@@ -57,16 +39,3 @@ comm.on("inactivity", () => {
 comm.on("reachable",()=>{
   console.log("PLC is port reachable")
 })
-```
-
-## Default Options
-
-**Micro800 default true**:
-
-Change global option
-```js
-  PLC.defaultOptions = {
-  Micro800: false,
-  autoConnect: false,
-  };
-```

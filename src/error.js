@@ -1,3 +1,5 @@
+"use strict";
+
 const cipErrorCodes = {
   0x00: "Success",
   0x01: "Connection failure",
@@ -94,6 +96,50 @@ class UnReachableError extends Error {
   }
 }
 
+class RegisterSessionError extends ConnectionError {
+  constructor() {
+    super("Failed to register session");
+  }
+}
+
+class ConnectionLostError extends ConnectionError {
+  constructor() {
+    super(cipErrorCodes[7]);
+    this.status = 7;
+  }
+}
+
+class ForwarOpenError extends ConnectionError {
+  constructor() {
+    super("Forward open Failed");
+  }
+}
+
+class PinMappingError extends Error {
+  constructor(message) {
+    super("Pin mapping error: " + message);
+    this.name = "PinMappingError";
+  }
+}
+
+const defaultErrors = {
+  PinMappingError,
+  ForwarOpenError,
+  ConnectionLostError,
+  RegisterSessionError,
+  UnReachableError,
+  DisconnectedError,
+  ConnectionTimeout,
+  LogixError,
+  ValueError,
+  ConnectionError,
+  cipErrorCodes
+};
+
+exports.PinMappingError = PinMappingError;
+exports.ForwarOpenError = ForwarOpenError;
+exports.ConnectionLostError = ConnectionLostError;
+exports.RegisterSessionError = RegisterSessionError;
 exports.UnReachableError = UnReachableError;
 exports.DisconnectedError = DisconnectedError;
 exports.ConnectionTimeout = ConnectionTimeout;
@@ -102,9 +148,5 @@ exports.ValueError = ValueError;
 exports.ConnectionError = ConnectionError;
 exports.cipErrorCodes = cipErrorCodes;
 
-exports.default = {
-  LogixError,
-  ValueError,
-  ConnectionError,
-  cipErrorCodes
-};
+module.exports = defaultErrors;
+exports.default = defaultErrors;
