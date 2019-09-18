@@ -70,10 +70,10 @@ class ConnectionError extends Error {
   }
 }
 
-class ConnectionTimeout extends Error {
-  constructor(message, timeout) {
-    super(message + " timeout at " + timeout + "ms");
-    this.name = "ConnectionTimeout";
+class ConnectionTimeoutError extends Error {
+  constructor(host,  timeout) {
+    super("Faile to connect with PLC("+host+") timeout at " + timeout + "ms");
+    this.name = "ConnectionTimeoutError";
     this.timeout = timeout;
   }
 }
@@ -85,16 +85,6 @@ class DisconnectedError extends Error {
   }
 }
 
-class UnReachableError extends Error {
-  constructor(port = "", ip = "") {
-    super(ip + " IP not reachable or PLC not connected");
-    this.name = "UnReachableError";
-    if (ip !== "" && port !== "") {
-      this.ip = ip;
-      this.port = port;
-    }
-  }
-}
 
 class RegisterSessionError extends ConnectionError {
   constructor() {
@@ -127,9 +117,8 @@ const defaultErrors = {
   ForwarOpenError,
   ConnectionLostError,
   RegisterSessionError,
-  UnReachableError,
   DisconnectedError,
-  ConnectionTimeout,
+  ConnectionTimeoutError,
   LogixError,
   ValueError,
   ConnectionError,
@@ -140,9 +129,8 @@ exports.PinMappingError = PinMappingError;
 exports.ForwarOpenError = ForwarOpenError;
 exports.ConnectionLostError = ConnectionLostError;
 exports.RegisterSessionError = RegisterSessionError;
-exports.UnReachableError = UnReachableError;
 exports.DisconnectedError = DisconnectedError;
-exports.ConnectionTimeout = ConnectionTimeout;
+exports.ConnectionTimeoutError = ConnectionTimeoutError;
 exports.LogixError = LogixError;
 exports.ValueError = ValueError;
 exports.ConnectionError = ConnectionError;

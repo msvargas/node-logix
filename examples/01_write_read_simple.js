@@ -36,6 +36,6 @@ comm.on("inactivity", () => {
   console.log("PLC inactivty");
 });
 
-comm.on("reachable",()=>{
-  console.log("PLC is port reachable")
-})
+comm.on("reachable", () => {
+  console.log("PLC is port reachable");
+});
