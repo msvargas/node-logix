@@ -4,7 +4,7 @@
 
 const PLC = require("../index");
 
-const comm = new PLC("192.168.100.174");
+const comm = new PLC("192.168.100.174", { arduinoMode : true });
 console.time("PLC connected successful! ");
 comm
   .connect()
@@ -16,7 +16,7 @@ comm
 
 const unsubscribe = comm.on("connect", () => {
   console.time("reading digital");
-  /*   comm
+  comm
     .digitalRead(0)
     .then(result => {
       console.timeEnd("reading digital");
@@ -27,7 +27,7 @@ const unsubscribe = comm.on("connect", () => {
         result.tagName
       );
     })
-    .catch(console.error); */
+    .catch(console.error);
   [0, 1, 2, 3, 4, 5, 6].forEach(p => {
     comm
       .digitalWrite(p, false)

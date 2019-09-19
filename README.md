@@ -2,7 +2,9 @@
 
 Nodejs package to handle PLC as Micro820 of Allen Bradley
 
-- Pooling using generic-pool to async read/write
+- Manager multiple connections/requests using pooling
+- Listener events as *connect*, *connect_error*, *disconnect* or *found* (discover function)
+- Ardunio mode: digitalRead, digitalWrite... functions
 
 ## Install package
 
@@ -46,8 +48,9 @@ comm.on("disconnect", reason => {
 });
 ```
 
-## Example: discover devices
+## Example: Discover devices
 
+Find devices using dgram socket
 ```js
 const PLC = require("node-logix");
 
@@ -56,11 +59,33 @@ PLC.discover().then(devices => {
 });
 ```
 
+## Example: Arduino mode
+
+```js
+  comm
+    .digitalRead(0)
+    .then(result => {
+      console.timeEnd("reading digital");
+      console.log(
+        "value of:",
+        result.valueOf(),
+        "tagName:",
+        result.tagName
+      );
+    })
+    .catch(console.error);
+  [0, 1, 2, 3, 4, 5, 6].forEach(p => {
+    comm
+      .digitalWrite(p, false)
+      .then(console.log)
+      .catch(e => console.error("error write", e));
+  });
+
+```
+
 ## Default Options
 
-**Micro800 default true**:
-
-Change global option
+**NOTE:** Micro800 option default: *true*:
 
 ```js
 PLC.defaultOptions = {

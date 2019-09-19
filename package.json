@@ -3,7 +3,8 @@
   "version": "1.0.6",
   "author": "Michael Vargas",
   "scripts": {
-    "prettier": "prettier --write src/**/*.js examples/*.js"
+    "prettier": "prettier --write src/**/*.js examples/*.js",
+    "publish": "npm publish --access public"
   },
   "dependencies": {
     "bluebird": "^3.5.5",
@@ -14,7 +15,18 @@
     "prettier": "^1.18.2"
   },
   "name": "node-logix",
-  "description": "Nodejs EthernetIP to handle PLC",
+  "description": "Nodejs EtherNet/IP to handle PLC as Micro820, Logix...",
   "main": "index.js",
-  "repository": "https://github.com/punisher97/node-logix.git"
+  "repository": "https://github.com/punisher97/node-logix.git",
+  "keywords": [
+    "Allen Bradley",
+    "nodejs Allen Bradley",
+    "nodejs PLC",
+    "EtherNet/IP",
+    "Micro800",
+    "Micro820",
+    "Micro850",
+    "Logix PLC"
+  ],
+  "readme": "README.md"
 }
