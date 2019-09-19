@@ -167,7 +167,7 @@ function _parseIdentityResponse(data, rinfo) {
   return resp;
 }
 
-exports.nameFunction = nameFunction
+exports.nameFunction = nameFunction;
 exports.unpackFrom = unpackFrom;
 exports.pack = pack;
 exports.LGXDevice = LGXDevice;

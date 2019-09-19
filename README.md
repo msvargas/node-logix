@@ -1,9 +1,8 @@
-node-logix
-============
+# node-logix
 
-Nodejs package to handle PLC as Micro820 of Allen Bradley, the source base code original written in Python language and port to nodejs.
+Nodejs package to handle PLC as Micro820 of Allen Bradley
 
-pylogix: https://github.com/dmroeder/pylogix - changelog 08/26/19
+- Pooling using generic-pool to async read/write
 
 ## Install package
 
@@ -16,6 +15,10 @@ or
 ```
   yarn add node-logix
 ```
+
+## Protocol
+
+- EtherNet/IP
 
 ## Example with events, read and write tags
 
@@ -38,25 +41,19 @@ comm.on("connect_error", e => {
   console.log("Fail to connect PLC", e);
 });
 
-comm.on("reconnect", () => {
-  console.log("PLC reconnected");
-});
-
-comm.on("error", e => {
-  console.log("plc error:", e.message);
-});
-
 comm.on("disconnect", reason => {
   console.log("PLC disconnected reason:", reason);
 });
+```
 
-comm.on("inactivity", () => {
-  console.log("PLC inactivty");
+## Example: discover devices
+
+```js
+const PLC = require("node-logix");
+
+PLC.discover().then(devices => {
+  console.log("Devices:", devices);
 });
-
-comm.on("reachable",()=>{
-  console.log("PLC is port reachable")
-})
 ```
 
 ## Default Options
@@ -64,9 +61,31 @@ comm.on("reachable",()=>{
 **Micro800 default true**:
 
 Change global option
+
 ```js
-  PLC.defaultOptions = {
-  Micro800: false,
-  autoConnect: false,
-  };
+PLC.defaultOptions = {
+  allowHalfOpen: true,
+  Micro800: true,
+  port: 44818,
+  connectTimeout: 3000,
+  arduinoMode: true,
+  pool: {
+    min: 0,
+    max: 3,
+    Promise,
+    priorityRange: 2,
+    fifo: false,
+    testOnBorrow: true,
+    evictionRunIntervalMillis: 17000,
+    idleTimeoutMillis: 30000
+  }
+};
 ```
+
+## Related Projects
+
+- [pylogix](https://github.com/dmroeder/pylogix)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENCE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details
