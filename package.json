@@ -1,6 +1,6 @@
 {
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "author": "Michael Vargas",
   "scripts": {
     "prettier": "prettier --write src/**/*.js examples/*.js"

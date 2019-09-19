@@ -4,7 +4,7 @@
 
 const PLC = require("../index");
 
-const comm = new PLC("192.168.1.10");
+const comm = new PLC("192.168.100.174");
 console.time("PLC connected successful! ");
 comm
   .connect()
@@ -13,26 +13,47 @@ comm
     console.log("failed connect:");
     console.error(e);
   });
-comm.on("connect", () => {
-  console.log("OK!");
+
+const unsubscribe = comm.on("connect", () => {
+  console.time("reading digital");
+  /*   comm
+    .digitalRead(0)
+    .then(result => {
+      console.timeEnd("reading digital");
+      console.log(
+        "value of here:",
+        result.valueOf(),
+        "tagName:",
+        result.tagName
+      );
+    })
+    .catch(console.error); */
+  [0, 1, 2, 3, 4, 5, 6].forEach(p => {
+    comm
+      .digitalWrite(p, false)
+      .then(console.log)
+      .catch(e => console.error("error write", e));
+  });
+  unsubscribe();
 });
+
 comm.on("connect_error", e => {
   console.log("KO! error");
-});
+}); /* 
 let pin = 6;
 var iv1 = setInterval(() => {
-  console.time("reading pin " + pin);
+  const t = new Date();
   comm
     .read("_IO_EM_DI_0" + pin)
     .then(val => {
       console.log("value:", val);
-      console.timeEnd("reading pin " + pin);
+      console.log("reading pin at ", Number(Date.now() - t).toFixed(3));
     })
     .catch(e => {
       console.error("error pin ", pin, e);
     });
   if (--pin < 0) pin = 6;
-}, 32000);
+}, 10000);
 
 var iv2 = setInterval(() => {
   console.log(
@@ -112,6 +133,7 @@ const onExit = () => {
   process.exit(0);
 };
 process.on("SIGINT", onExit);
+ */
 /* 
   //comm.digitalWrite(2,false)
   const pin = Number(process.argv[2]);

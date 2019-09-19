@@ -1,11 +1,17 @@
+"use-strict";
 const { Socket } = require("net");
 const Promise = require("bluebird");
+
 const {
+  unpackFrom,
+  pack,
   _parseTagName,
   BitValue,
   BitofWord,
   _getBitOfWord,
-  _getWordCount
+  _getWordCount,
+  _parseIdentityResponse,
+  LGXDevice
 } = require("./utils");
 const {
   RegisterSessionError,
@@ -16,12 +22,11 @@ const {
   ConnectionTimeoutError,
   ConnectionError
 } = require("./errors");
-const context_dict = require("./CIPcontext");
-const { unpackFrom, pack } = require("python-struct");
+const context_dict = require("../assets/CIPContext.json");
 
 class EIPSocket extends Socket {
   constructor(context) {
-    super({ allowHalfOpen: true });
+    super({ allowHalfOpen: context.allowHalfOpen });
     this.context = context;
     this._connected = false;
     this._context = 0x00;
@@ -96,10 +101,11 @@ class EIPSocket extends Socket {
       forwardClose.length + rrDataHeader.length
     );
   }
-  /**           * @private
-             * @description Forward Open happens after a connection is made,
-                  this will sequp the CIP connection parameters
-            */
+  /**
+   * @private
+   * @description Forward Open happens after a connection is made,
+   *    this will sequp the CIP connection parameters
+   */
   buildCIPForwardOpen() {
     this.serialNumber = ~~(Math.random() * 65001);
     let CIPService,
@@ -178,7 +184,7 @@ class EIPSocket extends Socket {
     );
   }
   /**
-   * @param {*} frameLen
+   * @param {Number} frameLen
    */
   buildEIPSendRRDataHeader(frameLen) {
     return pack(
@@ -199,12 +205,12 @@ class EIPSocket extends Socket {
     );
   }
   /**
-             * @private
-             * @description  The EIP Header contains the tagIOI and the
-                  commands to perform the read or write.  This request
-                  will be followed by the reply containing the data
-            * @param {Buffer} tagIOI 
-            */
+   * @private
+   * @description  The EIP Header contains the tagIOI and the
+   *      commands to perform the read or write.  This request
+   *     will be followed by the reply containing the data
+   * @param {Buffer} tagIOI
+   */
   buildEIPHeader(tagIOI) {
     if (this.contextPointer === 155) this.contextPointer = 0;
     this.contextPointer += 1;
@@ -232,6 +238,64 @@ class EIPSocket extends Socket {
     return Buffer.concat(
       [EIPHeaderFrame, tagIOI],
       EIPHeaderFrame.length + tagIOI.length
+    );
+  }
+  /**
+   * @description Service header for making a multiple tag request
+   */
+  buildMultiServiceHeader() {
+    return pack(
+      "<BBBBBB",
+      0x0a, // MultiService
+      0x02, // MultiPathSize
+      0x20, // MutliClassType
+      0x02, // MultiClassSegment
+      0x24, // MultiInstanceType
+      0x01 // MultiInstanceSegment
+    );
+  }
+  /**
+   * @description  Build the request for the PLC tags
+   *     Program scoped tags will pass the program name for the request
+   * @param {String} programName
+   */
+  buildTagListRequest(programName) {
+    let PathSegment;
+
+    //If we're dealing with program scoped tags...
+    if (programName) {
+      PathSegment =
+        pack("<BB", 0x91, programName.length) + programName.toString();
+      //if odd number of characters, need to add a byte to the end.
+      if (programName.length % 2) {
+        const data = pack("<B", 0x00);
+        PathSegment = Buffer.concat(
+          [PathSegment, data],
+          PathSegment.length + data.length
+        );
+      }
+    }
+
+    let data = pack("<H", 0x6b20);
+    PathSegment = Buffer.concat(
+      [PathSegment, data],
+      PathSegment.length + data.length
+    );
+
+    if (this.offset < 256) data = pack("<BB", 0x24, this.offset);
+    else data = pack("<HH", 0x25, this.offset);
+
+    PathSegment = Buffer.concat(
+      [PathSegment, data],
+      PathSegment.length + data.length
+    );
+
+    const Attributes = pack("<HHHH", 0x03, 0x01, 0x02, 0x08);
+    data = pack("<BB", 0x55, Math.round(PathSegment.length / 2));
+
+    return Buffer.concat(
+      [data, PathSegment, Attributes],
+      data.length + PathSegment.length + Attributes.length
     );
   }
   /**
@@ -264,21 +328,21 @@ class EIPSocket extends Socket {
     );
   }
   /**
-             * @private
-             * @description The tag IOI is basically the tag name assembled into
-                  an array of bytes structured in a way that the PLC will
-                  understand.  It's a little crazy, but we have to consider the
-                  many variations that a tag can be:
-                  @example
-                  TagName (DINT)
-                  TagName.1 (Bit of DINT)
-                  TagName.Thing (UDT)
-                  TagName[4].Thing[2].Length (more complex UDT)
-                  We also might be reading arrays, a bool from arrays (atomic), strings.
-                      Oh and multi-dim arrays, program scope tags...
-            * @param {String} tagName 
-            * @param {Boolean} isBoolArray 
-            */
+   * @private
+   * @description The tag IOI is basically the tag name assembled into
+   *     an array of bytes structured in a way that the PLC will
+   *      understand.  It's a little crazy, but we have to consider the
+   *      many variations that a tag can be:
+   *      @example
+   *      TagName (DINT)
+   *       TagName.1 (Bit of DINT)
+   *       TagName.Thing (UDT)
+   *       TagName[4].Thing[2].Length (more complex UDT)
+   *       We also might be reading arrays, a bool from arrays (atomic), strings.
+   *           Oh and multi-dim arrays, program scope tags...
+   * @param {String} tagName
+   * @param {Boolean} isBoolArray
+   */
   buildTagIOI(tagName, isBoolArray) {
     let RequestTagData = Buffer.from([]);
     const tagArray = tagName.split(".");
@@ -358,13 +422,13 @@ class EIPSocket extends Socket {
         }
       } else if (!/^d+$/.test(_tag)) {
         /**
-         * 
-                for non-array segment of tag
-                the try might be a stupid way of doing this.  If the portion of the tag
-                    can be converted to an integer successfully then we must be just looking
-                    for a bit from a word rather than a UDT.  So we then don't want to assemble
-                    the read request as a UDT, just read the value of the DINT.  We'll figure out
-                    the individual bit in the read function.
+         *
+         * for non-array segment of tag
+         * the try might be a stupid way of doing this.  If the portion of the tag
+         * can be converted to an integer successfully then we must be just looking
+         * for a bit from a word rather than a UDT.  So we then don't want to assemble
+         * the read request as a UDT, just read the value of the DINT.  We'll figure out
+         * the individual bit in the read function.
          */
         let BaseTagLenBytes = _tag.length;
         const data = pack("<BB", 0x91, BaseTagLenBytes);
@@ -385,13 +449,13 @@ class EIPSocket extends Socket {
     return RequestTagData;
   }
   /**
-               * @private
-               * @description  Gets the replies from the PLC
-                              In the case of BOOL arrays and bits of a word, we do some reformating
-              * @param {String} tag 
-              * @param {Number} elements 
-              * @param {Buffer|Array} data 
-              */
+   * @private
+   * @description  Gets the replies from the PLC
+   *               In the case of BOOL arrays and bits of a word, we do some reformating
+   * @param {String} tag
+   * @param {Number} elements
+   * @param {Buffer|Array} data
+   */
   async parseReply(tag, elements, data) {
     const [_, basetag, index] = _parseTagName(tag, 0);
     const datatype = this.context.knownTags[basetag][0],
@@ -516,12 +580,91 @@ class EIPSocket extends Socket {
     return ret.slice(bitPos, bitPos + count);
   }
   /**
-               * @private
-               * @description Store each unique tag read in a dict so that we can retreive the
-                    data type or data length (for STRING) later
-              * @param {String} baseTag 
-              * @param {Number} dt dataType of tag 
-              */
+   * @description         Takes multi read reply data and returns an array of the values
+   * @param {Array} tags Tags list to get read
+   * @param {Buffer} data
+   */
+  multiParser(tags, data) {
+    //remove the beginning of the packet because we just don't care about it
+    const stripped = data.slice(50);
+    //const tagCount = unpackFrom("<H", stripped, true, 0)[0];
+    const reply = [];
+    for (let i = 0; i < tags.length; i++) {
+      const tag = tags[i];
+      if (Array.isArray(tag)) tag = tag[0];
+      const loc = 2 + i * 2;
+      const offset = unpackFrom("<H", stripped, true, loc)[0];
+      const replyStatus = unpackFrom("<b", stripped, true, offset + 2)[0];
+      const replyExtended = unpackFrom("<b", stripped, true, offset + 3)[0];
+      //successful reply, add the value to our list
+      if (replyStatus == 0 && replyExtended == 0) {
+        const dataTypeValue = unpackFrom("<B", stripped, true, offset + 4)[0];
+        // if bit of word was requested
+        if (BitofWord(tag)) {
+          const dataTypeFormat = this.context.CIPTypes[dataTypeValue][2];
+          const val = unpackFrom(dataTypeFormat, stripped, true, offset + 6)[0];
+          const bitState = _getBitOfWord(tag, val);
+          reply.push(bitState);
+        } else if (dataTypeValue == 211) {
+          const dataTypeFormat = this.context.CIPTypes[dataTypeValue][2];
+          const val = unpackFrom(dataTypeFormat, stripped, true, offset + 6)[0];
+          const bitState = _getBitOfWord(tag, val);
+          reply.push(bitState);
+        } else if (dataTypeValue == 160) {
+          const strlen = unpackFrom("<B", stripped, true, offset + 8);
+          const s = stripped.slice(offset + 12, offset + 12 + strlen);
+          reply.push(s.toString("utf8"));
+        } else {
+          const dataTypeFormat = this.context.CIPTypes[dataTypeValue][2];
+          reply.push(unpackFrom(dataTypeFormat, stripped, true, offset + 6)[0]);
+        }
+      }
+    }
+    return reply;
+  }
+
+  /**
+   *
+   * @param {Buffer} data
+   * @param {String} programName
+   */
+  extractTagPacket(data, programName) {
+    // the first tag in a packet starts at byte 50
+    let packetStart = 50;
+    // console.log(data[50:])
+    while (packetStart < data.length) {
+      //get the length of the tag name
+      const tagLen = unpackFrom("<H", data, true, packetStart + 4)[0];
+      //get a single tag from the packet
+      const packet = data.slice(packetStart, packetStart + tagLen + 20);
+      //extract the offset
+      this.offset = unpackFrom("<H", packet, true, 0)[0];
+      //add the tag to our tag list
+      const tag = parseLgxTag(packet, programName);
+      //filter out garbage
+      if (tag.TagName.indexOf("__DEFVAL_") > -1) {
+      } else if (tag.TagName.indexOf("Routine:") > -1) {
+      } else if (tag.TagName.indexOf("Map:") > -1) {
+      } else if (tag.TagName.indexOf("Task:") > -1) {
+      } else {
+        this.context.tagList.push(tag);
+      }
+      if (!programName) {
+        if (tag.TagName.indexOf("Program:") > -1)
+          this.context.programNames.push(tag.TagName);
+      }
+      //increment ot the next tag in the packet
+      packetStart = packetStart + tagLen + 20;
+    }
+  }
+
+  /**
+   * @private
+   * @description Store each unique tag read in a dict so that we can retreive the
+   *        data type or data length (for STRING) later
+   * @param {String} baseTag
+   * @param {Number} dt dataType of tag
+   */
   _initial_read(baseTag, dt) {
     return Promise.try(() => {
       if (baseTag in this.context.knownTags) return true;
@@ -565,15 +708,15 @@ class EIPSocket extends Socket {
     });
   }
   /**
-               * @private
-               * @description This will add the bit level request to the tagIOI
-                              Writing to a bit is handled in a different way than
-                              other writes
-              * @param {String} tag 
-              * @param {Buffer} tagIOI 
-              * @param {Array} writeData 
-              * @param {Number} dataType 
-              */
+   * @private
+   * @description This will add the bit level request to the tagIOI
+   *               Writing to a bit is handled in a different way than
+   *               other writes
+   * @param {String} tag
+   * @param {Buffer} tagIOI
+   * @param {Array} writeData
+   * @param {Number} dataType
+   */
   addWriteBitIOI(tag, tagIOI, writeData, dataType) {
     const NumberOfBytes = this.context.CIPTypes[dataType][0] * writeData.length;
     let data = pack("<BB", 0x4e, Math.round(tagIOI.length / 2, 10));
@@ -688,7 +831,7 @@ class EIPSocket extends Socket {
           /**
            * Processes the write request
            */
-          const dataType = this.context.KnownTags[b][0];
+          const dataType = this.context.knownTags[b][0];
           // check if values passed were a list
           if (Array.isArray(value)) {
           } else {
@@ -801,9 +944,123 @@ class EIPSocket extends Socket {
     });
   }
   /**
+   * @description Processes the multiple read request
+   * @param {Array} tags
+   */
+  async multiReadTag(tags) {
+    const serviceSegments = [];
+    const segments = [];
+    let tagCount = tags.length;
+    this.offset = 0;
+    for (let index = 0; index < tags.length; index++) {
+      const tag = tags[index];
+      let tag_name, base;
+      if (Array.isArray(tag)) {
+        const result = _parseTagName(tag[0], 0);
+        base = result[1];
+        tag_name = result[0];
+        await this._initial_read(base, tag[1]);
+      } else {
+        const result = _parseTagName(tag, 0);
+        base = result[1];
+        tag_name = result[0];
+        await this._initial_read(base, undefined);
+      }
+      const dataType = this.context.knownTags[base][0];
+      const tagIOI = this.buildTagIOI(tag_name, dataType == 211);
+      serviceSegments.push(this.addReadIOI(tagIOI, 1));
+    }
+    const header = this.buildMultiServiceHeader();
+    const segmentCount = pack("<H", tagCount);
+    let temp = header.length;
+    if (tagCount > 2) temp += (tagCount - 2) * 2;
+    let offsets = pack("<H", temp);
+
+    // assemble all the segments
+    for (let i = 0; i < tagCount; i++) segments.push(serviceSegments[i]);
+
+    for (let i = 0; i < tagCount - 1; i++) {
+      temp += serviceSegments[i].length;
+      const data = pack("<H", temp);
+      offsets = Buffer.concat([offsets, data], data.length + offsets.length);
+    }
+    const readRequest = Buffer.concat(
+      [header, segmentCount, offsets, Buffer.from(segments)],
+      header.length + segmentCount.length + offsets.length + segments.length
+    );
+    const eipHeader = this.buildEIPHeader(readRequest);
+    const [status, retData] = await this.getBytes(eipHeader);
+    if (status == 0) {
+      return this.multiParser(tags, retData);
+    } else {
+      let err;
+      if (status in cipErrorCodes) {
+        err = cipErrorCodes[status];
+      } else {
+        err = "Unknown error";
+      }
+      throw new LogixError(
+        `Multi-read failed: ${tags.toString()} - ${err}`,
+        status
+      );
+    }
+  }
+  /**
+   * @description build unconnected send to request tag database
+   */
+  buildCIPUnconnectedSend() {
+    return pack(
+      "<BBBBBBBBH",
+      0x52, //CIPService
+      0x02, //CIPPathSize
+      0x20, // CIPClassType
+      0x06, //CIPClass
+      0x24, // CIPInstanceType
+      0x01, // CIPInstance
+      0x0a, // CIPPriority
+      0x0e, // CIPTimeoutTicks
+      0x06 // ServiceSize
+    );
+  }
+  /**
+   * @description  Request the properties of a module in a particular
+   *      slot
+   * @returns {LGXDevice}
+   */
+  getModuleProperties(slot) {
+    const AttributePacket = pack(
+      "<10B",
+      0x01,
+      0x02,
+      0x20,
+      0x01,
+      0x24,
+      0x01,
+      0x01,
+      0x00,
+      0x01,
+      slot
+    );
+
+    const frame = this.buildCIPUnconnectedSend();
+    let eipHeader = this.buildEIPSendRRDataHeader(frame.length);
+    eipHeader = Buffer.concat(
+      [eipHeader, frame, AttributePacket],
+      eipHeader.length + frame.length + AttributePacket.length
+    );
+    const pad = pack("<I", 0x00);
+    this.send(eipHeader);
+    let retData = this.recv_data();
+    retData = Buffer.concat([pad, retData], pad.length + retData.length);
+    const status = unpack_from("<B", retData, 46)[0];
+
+    return status == 0 ? _parseIdentityResponse(retData) : new LGXDevice();
+  }
+  /**
    * @private
    * @description get packet string to send CIP data
    * @param {String} string
+   * @returns {String}
    */
   _makeString(string) {
     const work = [];
@@ -823,6 +1080,7 @@ class EIPSocket extends Socket {
   /**
    * send data to socket and wait response
    * @param {Buffer} data
+   * @returns {Promise<Boolean>}
    */
   send(data) {
     return new Promise((resolve, reject) => {
@@ -833,7 +1091,8 @@ class EIPSocket extends Socket {
     });
   }
   /**
-   * listen data received from PLC
+   * @description listen data received from PLC
+   * @returns {Promise<Buffer>}
    */
   recv_data() {
     return new Promise(resolve => {
@@ -849,6 +1108,7 @@ class EIPSocket extends Socket {
   /**
    * send and receive data
    * @param {Buffer} data
+   * @returns {Promise<Buffer>}
    */
   getBytes(data) {
     return Promise.try(() => {
@@ -870,7 +1130,11 @@ class EIPSocket extends Socket {
         });
     });
   }
-
+  /**
+   * @override
+   * @description connect to PLC using EIP protocol
+   * @returns {Promise<EIPSocket>}
+   */
   connect() {
     return new Promise((resolve, reject) => {
       const onError = () => {
@@ -886,13 +1150,52 @@ class EIPSocket extends Socket {
       super.once("timeout", onError);
       super.once("error", onError);
       super.connect(this.context.port, this.context.host, () => {
-        this.setTimeout(0);
+        super.setTimeout(0);
         super.removeAllListeners();
-        resolve(true);
+        resolve();
       });
-    });
+    })
+      .then(() => this.send(this.buildRegisterSession()))
+      .then(() => this.recv_data())
+      .then(retData => {
+        return Promise.try(() => {
+          if (retData) {
+            this.sequenceCounter = 1;
+            this.sessionHandle = unpackFrom("<I", retData, false, 4)[0];
+            return true;
+          } else {
+            throw new RegisterSessionError();
+          }
+        });
+      })
+      .then(() => this.send(this.buildForwardOpenPacket()))
+      .then(() => this.recv_data())
+      .then(retData => [retData, unpackFrom("<b", retData, false, 42)[0]])
+      .spread((retData, sts) => {
+        super.removeAllListeners();
+        if (!sts) {
+          super.once("timeout", () => {
+            this.end();
+          });
+          super.once("error", () => {
+            this.disconnect();
+            //console.log("error");
+          });
+          this.id = unpackFrom("<I", retData, true, 44)[0];
+          this._connected = true;
+          return this;
+        } else {
+          this.destroy();
+          this._connected = false;
+          throw new ForwarOpenError();
+        }
+      });
   }
-
+  /**
+   * @override
+   * @description Destroy and disconnect EIP socket
+   * @returns {Promise<void>}
+   */
   disconnect() {
     return Promise.try(async () => {
       if (this.disconnected || this._closing) return;
@@ -904,61 +1207,17 @@ class EIPSocket extends Socket {
         await this.send(close_packet);
         await this.send(unreg_packet);
       }
+      super.destroy();
       this.id = undefined;
       this._closing = false;
       this._connected = false;
     });
   }
   /**
-   * Create CIP session
+   * @override
+   * @description Destroy and disconnect EIP socket and destroy from pool
+   * @returns {Promise<void>}
    */
-  static createClient(context) {
-    var socket = new EIPSocket(context);
-    return Promise.try(() => {
-      return socket
-        .connect()
-        .then(() => socket.send(socket.buildRegisterSession()))
-        .then(() => socket.recv_data())
-        .then(retData => {
-          return Promise.try(() => {
-            if (retData) {
-              socket.sequenceCounter = 1;
-              socket.sessionHandle = unpackFrom("<I", retData, false, 4)[0];
-              return true;
-            } else {
-              throw new RegisterSessionError();
-            }
-          });
-        })
-        .then(() => socket.send(socket.buildForwardOpenPacket()))
-        .then(() => socket.recv_data())
-        .then(retData => [retData, unpackFrom("<b", retData, false, 42)[0]])
-        .spread((retData, sts) => {
-          socket.removeAllListeners();
-          if (!sts) {
-            socket.once("timeout", () => {
-              socket.end();
-            });
-            socket.once("error", () => {
-              socket.disconnect();
-              //console.log("error");
-            });
-
-            socket.id = unpackFrom("<I", retData, true, 44)[0];
-            socket._connected = true;
-
-            return socket;
-          } else {
-            socket.removeAllListeners();
-            socket.destroy();
-            socket._connected = false;
-            //console.log("erorr:", retData, retData.length, sts);
-            throw new ForwarOpenError();
-          }
-        });
-    });
-  }
-
   destroy() {
     return Promise.resolve(async () => {
       await this.disconnect();
@@ -966,6 +1225,54 @@ class EIPSocket extends Socket {
       super.destroy();
     });
   }
+
+  /**
+   * @static
+   * @description Create CIP session
+   * @returns {Promise<EIPSocket>}
+   */
+  static createClient(context) {
+    var socket = new EIPSocket(context);
+    return Promise.try(() => {
+      return socket.connect();
+    });
+  }
+}
+
+/**
+ *
+ * @param {Buffer} packet
+ * @param {String} programName
+ */
+function parseLgxTag(packet, programName) {
+  const t = new LgxTag();
+  const length = unpackFrom("<H", packet, true, 4)[0];
+  const name = packet.slice(6, length + 6).toString("utf8");
+  if (programName) t.TagName = String(programName + "." + name);
+  else t.TagName = String(name);
+  t.InstanceID = unpackFrom("<H", packet, true, 0)[0];
+
+  const val = unpackFrom("<H", packet, true, length + 6)[0];
+
+  t.SymbolType = val & 0xff;
+  t.DataTypeValue = val & 0xfff;
+  t.Array = (val & 0x6000) >> 13;
+  t.Struct = (val & 0x8000) >> 15;
+
+  if (t.Array) t.Size = unpackFrom("<H", packet, true, length + 8)[0];
+  else t.Size = 0;
+  return t;
+}
+
+function LgxTag() {
+  this.tagName = "";
+  this.instanceID = 0x00;
+  this.symbolType = 0x00;
+  this.dataTypeValue = 0x00;
+  this.dataType = "";
+  this.array = 0x00;
+  this.struct = 0x00;
+  this.size = 0x00;
 }
 
 module.exports = EIPSocket;

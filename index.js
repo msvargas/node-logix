@@ -1,8 +1,8 @@
 "use strict";
 
 const PLC = require("./src/eip");
-const context = require("./src/CIPcontext");
+const EIPSocket = require("./src/eip-socket");
 
-exports.context = context;
+exports.EIPSocket = EIPSocket;
 module.exports = PLC;
 exports.default = PLC;

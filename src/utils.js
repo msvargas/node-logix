@@ -1,3 +1,5 @@
+const { unpackFrom, pack } = require("python-struct");
+const { LGXDevice, getDevice, getVendor } = require("./lgxDevice");
 /**
  * @description Get the number of words that the requested
     bits would occupy.  We have to take into account
@@ -6,6 +8,7 @@
  * @param {Number} start 
  * @param {Number} length 
  * @param {Number} bits 
+ * @returns {Number}
  */
 function _getWordCount(start, length, bits) {
   const newStart = start % bits;
@@ -16,9 +19,10 @@ function _getWordCount(start, length, bits) {
 
 /**
  * @description parse the packet to get the base tag name
-    the offset is so that we can increment the array pointer if need be
- * @param {String} tag 
- * @param {Number} offset 
+ *   the offset is so that we can increment the array pointer if need be
+ * @param {String} tag
+ * @param {Number} offset
+ * @returns {Array}
  */
 function _parseTagName(tag, offset) {
   let bt = tag,
@@ -44,58 +48,31 @@ function _parseTagName(tag, offset) {
 }
 
 /**
-   * @description Test if the user is trying to write to a bit of a word
-      ex. Tag.1 returns true (Tag = DINT)
-   * @param {String} tag 
-   */
+ * @description Test if the user is trying to write to a bit of a word
+ *   ex. Tag.1 returns true (Tag = DINT)
+ * @param {String} tag
+ * @returns {Boolean}
+ */
 function BitofWord(tag) {
   const s = tag.split(".");
-  if (/^\d+$/.test(s[s.length - 1])) return true;
-  else return false;
+  return /^\d+$/.test(s[s.length - 1]);
 }
 
 /**
  * @description Returns the specific bit of a words value
  * @param {Number} value
  * @param {Number} bitno
+ * @returns {Boolean}
  */
 function BitValue(value, bitno) {
-  const mask = 1 << bitno;
-  if (value & mask) return true;
-  else return false;
+  return value & (1 << bitno);
 }
 
-/**
- * @copyright https://stackoverflow.com/questions/15987750/equivalent-of-inet-aton-in-mongodb
- * @example ip example: 192.168.2.1
- * @param {String} ip
- */
-function inet_aton(ip) {
-  var a = new Array();
-  a = ip.split(".");
-  return (
-    ((a[0] << 24) >>> 0) +
-    ((a[1] << 16) >>> 0) +
-    ((a[2] << 8) >>> 0) +
-    (a[3] >>> 0)
-  );
-}
-
-/**
- * @example num example: 3232236033
- * @param {Number} n
- */
-function inet_ntoa(n) {
-  var a = ((n >> 24) & 0xff) >>> 0;
-  var b = ((n >> 16) & 0xff) >>> 0;
-  var c = ((n >> 8) & 0xff) >>> 0;
-  var d = (n & 0xff) >>> 0;
-  return a + "." + b + "." + c + "." + d;
-}
 /**
  * @description Takes a tag name, gets the bit from the end of it, then returns that bits value
  * @param {String} tag
- * @param {*} value
+ * @param {String} value
+ * @returns {Boolean}
  */
 function _getBitOfWord(tag, value) {
   const split_tag = tag.split("."),
@@ -119,6 +96,9 @@ function _getBitOfWord(tag, value) {
 
 /**
  * @description replace pin mapping
+ * @param {String} str
+ * @param {Number} pin
+ * @param {String}
  */
 function _replacePin(str = "", pin) {
   if (typeof str !== "string")
@@ -134,12 +114,53 @@ function _replacePin(str = "", pin) {
   return str;
 }
 
+/**
+ * flatten array
+ * @param {Array} arr
+ * @returns {Array}
+ */
+const flatten = arr => arr.reduce((flat, next) => flat.concat(next), []);
+/**
+ * @description we're going to take the packet and parse all the data that is in it.
+ * @param {Buffer|Array} data
+ * @returns {LGXDevice}
+ */
+function _parseIdentityResponse(data, rinfo) {
+  const resp = new LGXDevice(rinfo);
+  resp.length = unpackFrom("<H", data, true, 28)[0];
+  resp.encapsulationVersion = unpackFrom("<H", data, true, 30)[0];
+
+  const longIP = unpackFrom("<I", data, true, 36)[0];
+  resp.IPAddress = pack("<L", longIP).join(".");
+  resp.vendorId = unpackFrom("<H", data, true, 48)[0];
+  resp.vendor = getVendor(resp.vendorId);
+
+  resp.deviceType = unpackFrom("<H", data, true, 50)[0];
+  resp.device = getDevice(resp.deviceType);
+
+  resp.productCode = unpackFrom("<H", data, true, 52)[0];
+  const major = unpackFrom("<B", data, true, 54)[0];
+  const minor = unpackFrom("<B", data, true, 55)[0];
+  resp.revision = major === minor ? major : major + "." + minor;
+
+  resp.status = unpackFrom("<H", data, true, 56)[0];
+  resp.serialNumber = "0x" + unpackFrom("<I", data, true, 58)[0].toString(16);
+  const productNameLength = unpackFrom("<B", data, true, 62)[0];
+  resp.productName = data.slice(63, 63 + productNameLength).toString("utf8");
+
+  resp.state = data.slice(-1)[0];
+
+  return resp;
+}
+
+exports.unpackFrom = unpackFrom;
+exports.pack = pack;
+exports.LGXDevice = LGXDevice;
+exports.flatten = flatten;
+exports._parseIdentityResponse = _parseIdentityResponse;
 exports._parseTagName = _parseTagName;
 exports._getWordCount = _getWordCount;
 exports._getBitOfWord = _getBitOfWord;
 exports._replacePin = _replacePin;
-
 exports.BitofWord = BitofWord;
 exports.BitValue = BitValue;
-exports.inet_aton = inet_aton;
-exports.inet_ntoa = inet_ntoa;
