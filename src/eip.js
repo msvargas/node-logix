@@ -417,7 +417,7 @@ class PLC extends EIPSocketPool {
    * @param {Object} options
    * @returns {Promise<Array<LGXDevice>>} devices
    */
-  static discover(timeout = 5000, options) {
+  static discover(timeout = 200, options) {
     const { family = "IPv4", onFound, ...socketOptions } = options || {};
     if (family !== "IPv4" && family !== "IPv6")
       throw new EvalError("Incorrect ip family, must be IPv4 or IPv6");
@@ -460,7 +460,7 @@ class PLC extends EIPSocketPool {
               return reject(err);
             }
             clients.add(socket);
-            socket.on("message", msg => {
+            socket.on("message", (msg, rinfo) => {
               socket.idTimeout && clearTimeout(socket.idTimeout);
               socket.idTimeout = undefined;
               const context = unpackFrom("<Q", msg, true, 14)[0];

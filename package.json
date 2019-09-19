@@ -1,6 +1,6 @@
 {
   "license": "MIT",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "author": "Michael Vargas",
   "scripts": {
     "prettier": "prettier --write src/**/*.js examples/*.js",
@@ -20,8 +20,10 @@
   "repository": "https://github.com/punisher97/node-logix.git",
   "keywords": [
     "Allen Bradley",
-    "nodejs Allen Bradley",
-    "nodejs PLC",
+    "Node.js Allen-Bradley",
+    "Node.js PLC",
+    "Control-Logix",
+    "ethernet-ip",
     "EtherNet/IP",
     "Micro800",
     "Micro820",

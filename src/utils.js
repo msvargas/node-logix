@@ -158,7 +158,7 @@ function _parseIdentityResponse(data, rinfo) {
   resp.revision = major === minor ? major : major + "." + minor;
 
   resp.status = unpackFrom("<H", data, true, 56)[0];
-  resp.serialNumber = "0x" + unpackFrom("<I", data, true, 58)[0].toString(16);
+  resp.serialNumber =  unpackFrom("<I", data, true, 58)[0];
   const productNameLength = unpackFrom("<B", data, true, 62)[0];
   resp.productName = data.slice(63, 63 + productNameLength).toString("utf8");
 

@@ -2,6 +2,7 @@
 const { Socket } = require("net");
 const Promise = require("bluebird");
 const { EventEmitter } = require("events");
+const CIPTypes = require("../assets/CIPTypes.json");
 
 const {
   unpackFrom,
@@ -340,7 +341,7 @@ class EIPSocket extends Socket {
    * @returns {Buffer}
    */
   buildTagListRequest(programName) {
-    let PathSegment;
+    let PathSegment = Buffer.from([]);
 
     //If we're dealing with program scoped tags...
     if (programName) {
@@ -371,7 +372,7 @@ class EIPSocket extends Socket {
     );
 
     const Attributes = pack("<HHHH", 0x03, 0x01, 0x02, 0x08);
-    data = pack("<BB", 0x55, Math.round(PathSegment.length / 2));
+    data = pack("<BB", 0x55, ~~(PathSegment.length / 2));
 
     return Buffer.concat(
       [data, PathSegment, Attributes],
@@ -386,7 +387,7 @@ class EIPSocket extends Socket {
    * @returns {Buffer}
    */
   addPartialReadIOI(tagIOI, elements) {
-    const data1 = pack("<BB", 0x52, Math.round(tagIOI.length / 2));
+    const data1 = pack("<BB", 0x52, ~~(tagIOI.length / 2));
     const data2 = pack("<H", parseInt(elements));
     const data3 = pack("<I", this.offset);
     return Buffer.concat(
@@ -402,7 +403,7 @@ class EIPSocket extends Socket {
    * @returns {Buffer}
    */
   addReadIOI(tagIOI, elements) {
-    const data1 = pack("<BB", 0x4c, Math.round(tagIOI.length / 2));
+    const data1 = pack("<BB", 0x4c, ~~(tagIOI.length / 2));
     const data2 = pack("<H", parseInt(elements, 10));
     return Buffer.concat(
       [data1, tagIOI, data2],
@@ -430,10 +431,9 @@ class EIPSocket extends Socket {
     const tagArray = tagName.split(".");
     tagArray.forEach((_tag, i) => {
       if (_tag.endsWith("]")) {
-        [tag, basetag, index] = _parseTagName(_tag, 0);
+        const [_, basetag, index] = _parseTagName(_tag, 0);
         let BaseTagLenBytes = basetag.length;
-        if (isBoolArray && i === tagArray.length - 1)
-          index = Math.round(index / 32, 10);
+        if (isBoolArray && i === tagArray.length - 1) index = ~~(index / 32);
         const data1 = pack("<BB", 0x91, BaseTagLenBytes);
         // Assemble the packet
         RequestTagData = Buffer.concat(
@@ -459,7 +459,7 @@ class EIPSocket extends Socket {
               );
             }
 
-            if (65536 > index) {
+            if (65536 > index > 255) {
               const data = pack("<HH", 0x29, index);
               RequestTagData = Buffer.concat(
                 [RequestTagData, data],
@@ -477,7 +477,7 @@ class EIPSocket extends Socket {
           } else {
             index.forEach(element => {
               if (element < 256) {
-                const data = pack("<BB", 0x28, index);
+                const data = pack("<BB", 0x28, element);
                 RequestTagData = Buffer.concat(
                   [RequestTagData, data],
                   data.length + RequestTagData
@@ -485,7 +485,7 @@ class EIPSocket extends Socket {
               }
 
               if (65536 > element > 255) {
-                const data = pack("<HH", 0x29, index);
+                const data = pack("<HH", 0x29, element);
                 RequestTagData = Buffer.concat(
                   [RequestTagData, data],
                   data.length + RequestTagData.length
@@ -493,7 +493,7 @@ class EIPSocket extends Socket {
               }
 
               if (element > 65535) {
-                const data = pack("<HI", 0x2a, index);
+                const data = pack("<HI", 0x2a, element);
                 RequestTagData = Buffer.concat(
                   [RequestTagData, data],
                   data.length + RequestTagData.length
@@ -599,8 +599,7 @@ class EIPSocket extends Socket {
       const dataSize = this.context.CIPTypes[datatype][0];
       let numbytes = data.length - dataSize,
         counter = 0;
-      this.offset = 0;
-
+      this.offset = 0
       for (let i = 0; i < elements; i++) {
         let index = 52 + counter * dataSize;
         if (datatype === 160) {
@@ -645,7 +644,7 @@ class EIPSocket extends Socket {
       return vals;
     } else {
       const err = get_error_code(status);
-      throw new LogixError(`Failed to read tag: ${tag} - ${err}`, status);
+      throw new LogixError(`Failed to read tag-${tag} - ${err}`, status);
     }
   }
   /**
@@ -745,6 +744,8 @@ class EIPSocket extends Socket {
   extractTagPacket(data, programName) {
     // the first tag in a packet starts at byte 50
     let packetStart = 50;
+    if (!this.context.tagList) this.context.tagList = [];
+    if (!this.context.programNames) this.context.programNames = [];
     // console.log(data[50:])
     while (packetStart < data.length) {
       //get the length of the tag name
@@ -809,7 +810,7 @@ class EIPSocket extends Socket {
           } else if (status === 1) {
             err = new ConnectionError(err);
           } else {
-            err = new LogixError(`Failed to read tag: ${err}`, status);
+            err = new LogixError(`Failed to read tag-${err}`, status);
           }
           err.code = status;
           throw err;
@@ -830,7 +831,7 @@ class EIPSocket extends Socket {
    */
   addWriteBitIOI(tag, tagIOI, writeData, dataType) {
     const NumberOfBytes = this.context.CIPTypes[dataType][0] * writeData.length;
-    let data = pack("<BB", 0x4e, Math.round(tagIOI.length / 2, 10));
+    let data = pack("<BB", 0x4e, ~~(tagIOI.length / 2));
     let writeIOI = Buffer.concat([data, tagIOI], data.length + tagIOI.length);
     const fmt = this.CIPTypes[dataType][2].toUpperCase();
     const s = tag.split(".");
@@ -871,7 +872,7 @@ class EIPSocket extends Socket {
   addWriteIOI(tagIOI, writeData, dataType) {
     //console.log('tagIOI',tagIOI, 'writeData', writeData,dataType)
     // Add the write command stuff to the tagIOI
-    let data = pack("<BB", 0x4d, Math.round(tagIOI.length / 2, 10));
+    let data = pack("<BB", 0x4d, ~~(tagIOI.length / 2));
     let CIPWriteRequest = Buffer.concat(
         [data, tagIOI],
         data.length + tagIOI.length
@@ -936,7 +937,7 @@ class EIPSocket extends Socket {
     return Promise.try(() => {
       this.offset = 0;
       const writeData = [];
-      const b = _parseTagName(tag, 0)[1];
+      const [t, b, i] = _parseTagName(tag, 0);
       return this._initial_read(b, dt)
         .then(() => b)
         .then(b => {
@@ -980,14 +981,12 @@ class EIPSocket extends Socket {
             tagData = this.buildTagIOI(tag, false);
             writeRequest = this.addWriteIOI(tagData, writeData, dataType);
           }
-          //console.log("writeRequest",JSON.stringify( writeRequest.toString("utf8")),writeRequest)
           return this.getBytes(this.buildEIPHeader(writeRequest));
         })
         .spread(status => {
-          //console.log("retData:", retData, retData.length, status);
           if (status != 0) {
             const err = get_error_code(status);
-            throw new LogixError(`Write failed: ${err}`, status);
+            throw new LogixError(`Write failed -${err}`, status);
           }
         });
     });
@@ -1040,7 +1039,7 @@ class EIPSocket extends Socket {
             return this.parseReply(tag, elements, retData);
           else {
             const err = get_error_code(status);
-            throw new LogixError("Read failed: " + err, status);
+            throw new LogixError("Read failed-" + err, status);
           }
         });
     });
@@ -1097,7 +1096,7 @@ class EIPSocket extends Socket {
     } else {
       const err = get_error_code(status);
       throw new LogixError(
-        `Multi-read failed: ${tags.toString()} - ${err}`,
+        `Multi-read failed-${tags.toString()} - ${err}`,
         status
       );
     }
@@ -1202,24 +1201,26 @@ class EIPSocket extends Socket {
     this.offset = 0;
     delete this.context.programNames;
     delete this.context.tagList;
-    const request = this.buildTagListRequest();
-    const eipHeader = this.buildEIPHeader(request);
-    const [status, retData] = await this.getBytes(eipHeader);
+    let request = this.buildTagListRequest();
+    let eipHeader = this.buildEIPHeader(request);
+    let [status, retData] = await this.getBytes(eipHeader);
+
     if (status === 0 || status === 6) {
       this.extractTagPacket(retData);
+      //console.log(this.context.tagList);
     } else {
       const err = get_error_code(status);
       throw new LogixError(`Failed to get tag list ${err}`, status);
     }
     while (status == 6) {
       this.offset += 1;
-      const request = this.buildTagListRequest();
-      const eipHeader = this.buildEIPHeader(request);
-      const [status, retData] = await this.getBytes(eipHeader);
+      request = this.buildTagListRequest();
+      eipHeader = this.buildEIPHeader(request);
+      [status, retData] = await this.getBytes(eipHeader);
       if (status == 0 || status == 6) this.extractTagPacket(retData);
       else {
         const err = get_error_code(status);
-        throw new LogixError(`Failed to get tag list ${err}`, status);
+        throw new LogixError(`Failed to get tag list-${err}`, status);
       }
     }
     return;
@@ -1620,7 +1621,7 @@ function parseLgxTag(packet, programName) {
   const name = packet.slice(6, length + 6).toString("utf8");
   if (programName) t.tagName = String(programName + "." + name);
   else t.tagName = String(name);
-  t.instanceID = unpackFrom("<H", packet, true, 0)[0];
+  t.instanceId = unpackFrom("<H", packet, true, 0)[0];
 
   const val = unpackFrom("<H", packet, true, length + 6)[0];
 
@@ -1662,3 +1663,4 @@ function get_error_code(status) {
 exports.Response = Response;
 exports.EIPContext = EIPContext;
 exports.EIPSocket = EIPSocket;
+exports.CIPTypes = CIPTypes;

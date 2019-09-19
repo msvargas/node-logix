@@ -1,5 +1,3 @@
 __pycache__
 node_modules
 *.py
-server.js
-client.js

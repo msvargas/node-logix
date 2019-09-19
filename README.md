@@ -2,9 +2,9 @@
 
 Nodejs package to handle PLC as Micro820 of Allen Bradley
 
-- Manager multiple connections/requests using pooling
+- Manager multiple connections to write/read tags using pooling with (generic-pool)[https://www.npmjs.com/package/generic-pool]
 - Listener events as *connect*, *connect_error*, *disconnect* or *found* (discover function)
-- Ardunio mode: digitalRead, digitalWrite... functions
+- Ardunio mode: functions as digitalRead, digitalWrite... 
 
 ## Install package
 
@@ -104,10 +104,9 @@ PLC.defaultOptions = {
     evictionRunIntervalMillis: 17000,
     idleTimeoutMillis: 30000
   }
-};
 ```
 
-## Related Projects
+## Inpired by projects
 
 - [pylogix](https://github.com/dmroeder/pylogix)
 

@@ -10,10 +10,10 @@ class ValueError extends Error {
 }
 
 class LogixError extends Error {
-  constructor(message, code) {
+  constructor(message, status) {
     super(message);
     this.name = "LogixError";
-    this.code = code || null;
+    this.status = status || null;
   }
 }
 

@@ -2,8 +2,7 @@
 const Promise = require("bluebird");
 const genericPool = require("generic-pool");
 
-const CIPTypes = require("../assets/CIPTypes.json");
-const { EIPSocket, EIPContext } = require("./eip-socket");
+const { EIPSocket, EIPContext, CIPTypes } = require("./eip-socket");
 
 class EIPSocketPool extends EIPContext {
   constructor(props) {

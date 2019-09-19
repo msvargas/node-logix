@@ -18,9 +18,7 @@ const vendors = require("../assets/vendors.json");
 
 class LGXDevice {
   constructor(address) {
-    if (!!address) {
-      this.address = () => address;
-    }
+    if (!!address) this.address = () => address;
     this.IPAddress = undefined;
     this.length = undefined;
     this.encapsulationVersion = undefined;

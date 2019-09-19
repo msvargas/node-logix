@@ -9,9 +9,12 @@ const comm = new PLC("192.168.100.174");
 comm
   .connect()
   .then(() => {
-    return comm.write("_IO_EM_DO_01", false).then(() => {
-      return comm.read("_IO_EM_DO_01").then(console.log);
-    });
+    comm
+      .getTagList()
+      .then(tags => {
+        console.log("Tags list:", tags.length);
+      })
+      .catch(console.error);
   })
   .catch(console.error);
 

@@ -9,9 +9,12 @@ const comm = new PLC("192.168.100.174");
 comm
   .connect()
   .then(() => {
-    return comm.write("_IO_EM_DO_01", false).then(() => {
-      return comm.read("_IO_EM_DO_01").then(console.log);
-    });
+    return (
+      comm
+        .read("LargeArray[900]", { count : 100})
+        //.then(console.log)
+        .then(data => console.log(data))
+    );
   })
   .catch(console.error);
 
