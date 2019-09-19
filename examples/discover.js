@@ -2,6 +2,6 @@
 
 const PLC = require("../index");
 
-PLC.discover()
-  .then(console.log)
-  .catch(console.log);
+PLC.discover().then(devices => {
+  console.log("Devices:", devices);
+});

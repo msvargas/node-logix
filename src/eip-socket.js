@@ -1,6 +1,7 @@
 "use-strict";
 const { Socket } = require("net");
 const Promise = require("bluebird");
+const { EventEmitter } = require("events");
 
 const {
   unpackFrom,
@@ -11,7 +12,8 @@ const {
   _getBitOfWord,
   _getWordCount,
   _parseIdentityResponse,
-  LGXDevice
+  LGXDevice,
+  nameFunction
 } = require("./utils");
 const {
   RegisterSessionError,
@@ -24,7 +26,68 @@ const {
 } = require("./errors");
 const context_dict = require("../assets/CIPContext.json");
 
+class EIPContext extends EventEmitter {
+  constructor(props) {
+    super();
+    const {
+      Micro800,
+      vendorId,
+      processorSlot,
+      connectionSize,
+      port,
+      host,
+      connectTimeout,
+      allowHalfOpen
+    } = props || {};
+    this.port = port || 44818;
+    this.host = host;
+    this.allowHalfOpen = allowHalfOpen || true;
+    this.Micro800 = !!Micro800;
+    this.connectionSize = connectionSize || 508;
+    this.vendorId = vendorId || 0x1337;
+    this.processorSlot = processorSlot || 0;
+    this.CIPTypes = CIPTypes;
+    this.connectionPath = Micro800
+      ? [0x20, 0x02, 0x24, 0x01]
+      : [0x01, processorSlot, 0x20, 0x02, 0x24, 0x01];
+    this.connectionPathSize = Micro800 ? 2 : 3;
+    this.structIdentifier = 0x0fce;
+    this.knownTags = {};
+    this.connectTimeout = connectTimeout || 5000;
+    this._connected = false;
+    this._connecting = false;
+    this.tagList = [];
+    this.programNames = [];
+  }
+  /**
+   * @override
+   * @param {String} event
+   * @param {Function} listener
+   */
+  on(event, listener) {
+    super.on(event, listener);
+    return nameFunction(`off_${event}`, () => {
+      super.off(event, listener);
+    });
+  }
+  /**
+   * @override
+   * @param {String} event
+   * @param {Function} listener
+   */
+  once(event, listener) {
+    super.once(event, listener);
+    return nameFunction(`off_${event}`, () => {
+      super.off(event, listener);
+    });
+  }
+}
+
 class EIPSocket extends Socket {
+  /**
+   * @description Create EtherNet/IP socket to read/write tags in PLC
+   * @param {EIPContext} context
+   */
   constructor(context) {
     super({ allowHalfOpen: context.allowHalfOpen });
     this.context = context;
@@ -38,16 +101,24 @@ class EIPSocket extends Socket {
     this.serialNumber = 0;
     this.id = 0;
   }
+  /**
+   * @description check if socket is connected
+   * @returns {Boolean}
+   */
   get connected() {
     return this._connected && !this.destroyed;
   }
-
+  /**
+   * @description Check if socket is disconnected
+   * @returns {Boolean}
+   */
   get disconnected() {
-    return this.destroyed;
+    return !this.connected;
   }
   /**
    * @private
    * @description Register our CIP connection
+   * @returns {Buffer}
    */
   buildRegisterSession() {
     return pack(
@@ -65,6 +136,7 @@ class EIPSocket extends Socket {
   /**
    * @private
    * @description Unregister CIP connection
+   * @returns {Buffer}
    */
   buildUnregisterSession() {
     return pack(
@@ -80,6 +152,7 @@ class EIPSocket extends Socket {
   /**
    * @private
    * @description  Assemble the forward open packet
+   * @returns {Buffer}
    */
   buildForwardOpenPacket() {
     const forwardOpen = this.buildCIPForwardOpen();
@@ -92,6 +165,7 @@ class EIPSocket extends Socket {
   /**
    * @private
    * @description  Assemble the forward close packet
+   * @returns {Buffer}
    */
   buildForwardClosePacket() {
     const forwardClose = this.buildForwardClose();
@@ -105,6 +179,7 @@ class EIPSocket extends Socket {
    * @private
    * @description Forward Open happens after a connection is made,
    *    this will sequp the CIP connection parameters
+   * @returns {Buffer}
    */
   buildCIPForwardOpen() {
     this.serialNumber = ~~(Math.random() * 65001);
@@ -156,6 +231,7 @@ class EIPSocket extends Socket {
   }
   /**
    * @description Forward Close packet for closing the connection
+   * @returns {Buffer}
    */
   buildForwardClose() {
     const ForwardClose = pack(
@@ -185,6 +261,7 @@ class EIPSocket extends Socket {
   }
   /**
    * @param {Number} frameLen
+   * @returns {Buffer}
    */
   buildEIPSendRRDataHeader(frameLen) {
     return pack(
@@ -210,6 +287,7 @@ class EIPSocket extends Socket {
    *      commands to perform the read or write.  This request
    *     will be followed by the reply containing the data
    * @param {Buffer} tagIOI
+   * @returns {Buffer}
    */
   buildEIPHeader(tagIOI) {
     if (this.contextPointer === 155) this.contextPointer = 0;
@@ -242,6 +320,7 @@ class EIPSocket extends Socket {
   }
   /**
    * @description Service header for making a multiple tag request
+   * @returns {Buffer}
    */
   buildMultiServiceHeader() {
     return pack(
@@ -258,6 +337,7 @@ class EIPSocket extends Socket {
    * @description  Build the request for the PLC tags
    *     Program scoped tags will pass the program name for the request
    * @param {String} programName
+   * @returns {Buffer}
    */
   buildTagListRequest(programName) {
     let PathSegment;
@@ -303,6 +383,7 @@ class EIPSocket extends Socket {
    * @description  Add the partial read service to the tag IOI
    * @param {Buffer} tagIOI
    * @param {Number} elements
+   * @returns {Buffer}
    */
   addPartialReadIOI(tagIOI, elements) {
     const data1 = pack("<BB", 0x52, Math.round(tagIOI.length / 2));
@@ -318,6 +399,7 @@ class EIPSocket extends Socket {
    * @description Add the read service to the tagIOI
    * @param {Buffer} tagIOI
    * @param {Number} elements
+   * @returns {Buffer}
    */
   addReadIOI(tagIOI, elements) {
     const data1 = pack("<BB", 0x4c, Math.round(tagIOI.length / 2));
@@ -334,10 +416,10 @@ class EIPSocket extends Socket {
    *      understand.  It's a little crazy, but we have to consider the
    *      many variations that a tag can be:
    *      @example
-   *      TagName (DINT)
-   *       TagName.1 (Bit of DINT)
-   *       TagName.Thing (UDT)
-   *       TagName[4].Thing[2].Length (more complex UDT)
+   *      tagName (DINT)
+   *       tagName.1 (Bit of DINT)
+   *       tagName.Thing (UDT)
+   *       tagName[4].Thing[2].Length (more complex UDT)
    *       We also might be reading arrays, a bool from arrays (atomic), strings.
    *           Oh and multi-dim arrays, program scope tags...
    * @param {String} tagName
@@ -449,12 +531,31 @@ class EIPSocket extends Socket {
     return RequestTagData;
   }
   /**
+   * @description build unconnected send to request tag database
+   * @returns {Buffer}
+   */
+  buildCIPUnconnectedSend() {
+    return pack(
+      "<BBBBBBBBH",
+      0x52, //CIPService
+      0x02, //CIPPathSize
+      0x20, // CIPClassType
+      0x06, //CIPClass
+      0x24, // CIPInstanceType
+      0x01, // CIPInstance
+      0x0a, // CIPPriority
+      0x0e, // CIPTimeoutTicks
+      0x06 // ServiceSize
+    );
+  }
+  /**
    * @private
    * @description  Gets the replies from the PLC
    *               In the case of BOOL arrays and bits of a word, we do some reformating
    * @param {String} tag
    * @param {Number} elements
    * @param {Buffer|Array} data
+   * @returns {Boolean|Array|Number}
    */
   async parseReply(tag, elements, data) {
     const [_, basetag, index] = _parseTagName(tag, 0);
@@ -483,6 +584,7 @@ class EIPSocket extends Socket {
    * @param {String} tag
    * @param {Number} elements
    * @param {*} data
+   * @returns {Array}
    */
   async getReplyValues(tag, elements, data) {
     let status = unpackFrom("<B", data, true, 48)[0];
@@ -542,12 +644,7 @@ class EIPSocket extends Socket {
       }
       return vals;
     } else {
-      let err;
-      if (status in cipErrorCodes) {
-        err = cipErrorCodes[status];
-      } else {
-        err = "Unknown error";
-      }
+      const err = get_error_code(status);
       throw new LogixError(`Failed to read tag: ${tag} - ${err}`, status);
     }
   }
@@ -557,6 +654,7 @@ class EIPSocket extends Socket {
    * @param {String} tag
    * @param {*} value
    * @param {Number} count
+   * @returns {Array<Boolean>}
    */
   wordsToBits(tag, value, count = 0) {
     const [_, basetag, index] = _parseTagName(tag, 0),
@@ -583,6 +681,7 @@ class EIPSocket extends Socket {
    * @description         Takes multi read reply data and returns an array of the values
    * @param {Array} tags Tags list to get read
    * @param {Buffer} data
+   * @return {Array}
    */
   multiParser(tags, data) {
     //remove the beginning of the packet because we just don't care about it
@@ -596,6 +695,7 @@ class EIPSocket extends Socket {
       const offset = unpackFrom("<H", stripped, true, loc)[0];
       const replyStatus = unpackFrom("<b", stripped, true, offset + 2)[0];
       const replyExtended = unpackFrom("<b", stripped, true, offset + 3)[0];
+      let response;
       //successful reply, add the value to our list
       if (replyStatus == 0 && replyExtended == 0) {
         const dataTypeValue = unpackFrom("<B", stripped, true, offset + 4)[0];
@@ -604,29 +704,43 @@ class EIPSocket extends Socket {
           const dataTypeFormat = this.context.CIPTypes[dataTypeValue][2];
           const val = unpackFrom(dataTypeFormat, stripped, true, offset + 6)[0];
           const bitState = _getBitOfWord(tag, val);
-          reply.push(bitState);
+          response = Response(tag, bitState, replyStatus);
+          //reply.push(bitState);
         } else if (dataTypeValue == 211) {
           const dataTypeFormat = this.context.CIPTypes[dataTypeValue][2];
           const val = unpackFrom(dataTypeFormat, stripped, true, offset + 6)[0];
           const bitState = _getBitOfWord(tag, val);
-          reply.push(bitState);
+          //reply.push(bitState);
+          response = Response(tag, bitState, replyStatus);
         } else if (dataTypeValue == 160) {
           const strlen = unpackFrom("<B", stripped, true, offset + 8);
           const s = stripped.slice(offset + 12, offset + 12 + strlen);
-          reply.push(s.toString("utf8"));
+          const value = s.toString("utf8");
+          response = Response(tag, value, replyStatus);
+          //reply.push(s.toString("utf8"));
         } else {
           const dataTypeFormat = this.context.CIPTypes[dataTypeValue][2];
-          reply.push(unpackFrom(dataTypeFormat, stripped, true, offset + 6)[0]);
+          //reply.push(unpackFrom(dataTypeFormat, stripped, true, offset + 6)[0]);
+          const value = unpackFrom(
+            dataTypeFormat,
+            stripped,
+            false,
+            offset + 6
+          )[0];
+          response = Response(tag, value, replyStatus);
         }
+      } else {
+        response = Response(tag, undefined, replyStatus);
       }
+      reply.push(response);
     }
     return reply;
   }
-
   /**
    *
    * @param {Buffer} data
    * @param {String} programName
+   * @returns {void}
    */
   extractTagPacket(data, programName) {
     // the first tag in a packet starts at byte 50
@@ -642,16 +756,16 @@ class EIPSocket extends Socket {
       //add the tag to our tag list
       const tag = parseLgxTag(packet, programName);
       //filter out garbage
-      if (tag.TagName.indexOf("__DEFVAL_") > -1) {
-      } else if (tag.TagName.indexOf("Routine:") > -1) {
-      } else if (tag.TagName.indexOf("Map:") > -1) {
-      } else if (tag.TagName.indexOf("Task:") > -1) {
+      if (tag.tagName.indexOf("__DEFVAL_") > -1) {
+      } else if (tag.tagName.indexOf("Routine:") > -1) {
+      } else if (tag.tagName.indexOf("Map:") > -1) {
+      } else if (tag.tagName.indexOf("Task:") > -1) {
       } else {
         this.context.tagList.push(tag);
       }
       if (!programName) {
-        if (tag.TagName.indexOf("Program:") > -1)
-          this.context.programNames.push(tag.TagName);
+        if (tag.tagName.indexOf("Program:") > -1)
+          this.context.programNames.push(tag.tagName);
       }
       //increment ot the next tag in the packet
       packetStart = packetStart + tagLen + 20;
@@ -664,6 +778,7 @@ class EIPSocket extends Socket {
    *        data type or data length (for STRING) later
    * @param {String} baseTag
    * @param {Number} dt dataType of tag
+   * @returns {Boolean}
    */
   _initial_read(baseTag, dt) {
     return Promise.try(() => {
@@ -686,12 +801,7 @@ class EIPSocket extends Socket {
           this.context.knownTags[baseTag] = [dataType, dataLen];
           return true;
         } else {
-          let err;
-          if (status in cipErrorCodes) {
-            err = cipErrorCodes[status];
-          } else {
-            err = "Unknown error ".concat(status);
-          }
+          let err = get_error_code(status);
           // lost connection
           if (status === 7) {
             err = new ConnectionLostError(err);
@@ -702,7 +812,7 @@ class EIPSocket extends Socket {
             err = new LogixError(`Failed to read tag: ${err}`, status);
           }
           err.code = status;
-          return Promise.reject(err);
+          throw err;
         }
       });
     });
@@ -716,6 +826,7 @@ class EIPSocket extends Socket {
    * @param {Buffer} tagIOI
    * @param {Array} writeData
    * @param {Number} dataType
+   * @returns {Buffer}
    */
   addWriteBitIOI(tag, tagIOI, writeData, dataType) {
     const NumberOfBytes = this.context.CIPTypes[dataType][0] * writeData.length;
@@ -755,6 +866,7 @@ class EIPSocket extends Socket {
    * @param {Buffer} tagIOI
    * @param {Array} writeData
    * @param {Number} dataType
+   * @returns {Buffer}
    */
   addWriteIOI(tagIOI, writeData, dataType) {
     //console.log('tagIOI',tagIOI, 'writeData', writeData,dataType)
@@ -874,26 +986,19 @@ class EIPSocket extends Socket {
         .spread(status => {
           //console.log("retData:", retData, retData.length, status);
           if (status != 0) {
-            let err;
-            if (status in cipErrorCodes) {
-              err = cipErrorCodes[status];
-            } else {
-              err = `Unknown error ${status}`;
-            }
-            return Promise.reject(
-              new LogixError(`Write failed: ${err}`, status)
-            );
+            const err = get_error_code(status);
+            throw new LogixError(`Write failed: ${err}`, status);
           }
         });
     });
   }
-
   /**
    * @description  Read tag function low level
    * @private
-   * @param {String} tag TagName
+   * @param {String} tag tagName
    * @param {Number} elements Num elements
    * @param {Number} dt DataType
+   * @returns {Array|Boolean|Number|String}}
    */
   readTag(tag, options = {}) {
     const { count: elements = 1, dataType: dt } = options;
@@ -934,11 +1039,8 @@ class EIPSocket extends Socket {
           if (status == 0 || status == 6)
             return this.parseReply(tag, elements, retData);
           else {
-            if (status in cipErrorCodes) err = cipErrorCodes[status];
-            else err = "Unknown error " + status;
-            return Promise.reject(
-              new LogixError("Read failed: " + err, status)
-            );
+            const err = get_error_code(status);
+            throw new LogixError("Read failed: " + err, status);
           }
         });
     });
@@ -993,12 +1095,7 @@ class EIPSocket extends Socket {
     if (status == 0) {
       return this.multiParser(tags, retData);
     } else {
-      let err;
-      if (status in cipErrorCodes) {
-        err = cipErrorCodes[status];
-      } else {
-        err = "Unknown error";
-      }
+      const err = get_error_code(status);
       throw new LogixError(
         `Multi-read failed: ${tags.toString()} - ${err}`,
         status
@@ -1006,20 +1103,291 @@ class EIPSocket extends Socket {
     }
   }
   /**
-   * @description build unconnected send to request tag database
+   * @description Requests the PLC clock time
+   * @param {Boolean} raw
    */
-  buildCIPUnconnectedSend() {
+  async getTime(raw) {
+    const AttributePacket = pack(
+      "<BBBBBBH1H",
+      0x03,
+      0x02,
+      0x20,
+      0x8b,
+      0x24,
+      0x01,
+      0x01,
+      0x0b
+    );
+    const eipHeader = this.buildEIPHeader(AttributePacket);
+    const [status, retData] = await this.getBytes(eipHeader);
+    if (status == 0) {
+      const us = Number(unpackFrom("<Q", retData, true, 56)[0].toString());
+      return raw ? us : new Date(1970, 1, 1) + us / 1000;
+    } else {
+      const err = get_error_code(status);
+      throw new LogixError(`Failed get PLC time ${err}`, status);
+    }
+  }
+  async setTime() {
+    const AttributePacket = pack(
+      "<BBBBBBHHQ",
+      0x04,
+      0x02,
+      0x20,
+      0x8b,
+      0x24,
+      0x01,
+      0x01,
+      0x06,
+      Date.now() * 1000000
+    );
+    const eipHeader = this.buildEIPHeader(AttributePacket);
+    const [status, _] = await this.getBytes(eipHeader);
+    if (status == 0) {
+      return;
+    } else {
+      const err = get_error_code(status);
+      throw new LogixError(`Failed set PLC time ${err}`, status);
+    }
+  }
+  /**
+   * @description         Retrieves the tag list from the PLC
+   *     Optional parameter allTags set to True
+   *     If is set to False, it will return only controller
+   *     otherwise controller tags and program tags.
+   * @param {Boolean} allTags
+   * @returns {Array}
+   *
+   */
+  async getTagList(allTags = true) {
+    if (allTags) {
+      await this._getTagList();
+      await this._getAllProgramsTags();
+    } else {
+      await this._getTagList();
+    }
+    await this._getUDT();
+    return this.context.tagList;
+  }
+  /**
+   *  @description Retrieves a program tag list from the PLC
+   *     programName = "Program:ExampleProgram"
+   */
+  async getProgramTagList(programName) {
+    // Ensure programNames is not empty
+    if (this.context.programNames) await this._getTagList();
+
+    //Get a single program tags if programName exists
+    if (this.context.programNames.includes(programName)) {
+      await this._getProgramTagList(programName);
+      await this._getUDT();
+      return this.context.tagList;
+    } else {
+      return new Error("Program not found, please check name!");
+    }
+  }
+  /**
+   * @description         Retrieves a program names list from the PLC
+   *    Sanity check: checks if programNames is empty
+   *     and runs _getTagList
+   */
+  async getProgramsList() {
+    if (!this.context.programNames.length) await this._getTagList();
+    return this.context.programNames;
+  }
+  /**
+   * @description Requests the controller tag list and returns a list of LgxTag type
+   */
+  async _getTagList() {
+    this.offset = 0;
+    delete this.context.programNames;
+    delete this.context.tagList;
+    const request = this.buildTagListRequest();
+    const eipHeader = this.buildEIPHeader(request);
+    const [status, retData] = await this.getBytes(eipHeader);
+    if (status === 0 || status === 6) {
+      this.extractTagPacket(retData);
+    } else {
+      const err = get_error_code(status);
+      throw new LogixError(`Failed to get tag list ${err}`, status);
+    }
+    while (status == 6) {
+      this.offset += 1;
+      const request = this.buildTagListRequest();
+      const eipHeader = this.buildEIPHeader(request);
+      const [status, retData] = await this.getBytes(eipHeader);
+      if (status == 0 || status == 6) this.extractTagPacket(retData);
+      else {
+        const err = get_error_code(status);
+        throw new LogixError(`Failed to get tag list ${err}`, status);
+      }
+    }
+    return;
+  }
+  /**
+   * @description Requests all programs tag list and appends to taglist (LgxTag type)
+   */
+  async _getAllProgramsTags() {
+    this.offset = 0;
+    for (const programName of this.context.programNames) {
+      this.offset = 0;
+      const request = this.buildTagListRequest(programName);
+      const eipHeader = this.buildEIPHeader(request);
+      const [status, retData] = await this.getBytes(eipHeader);
+      if (status == 0 || status == 6)
+        this._extractTagPacket(retData, programName);
+      else {
+        const err = get_error_code(status);
+        throw new LogixError(`Failed to get program tag list ${err}`, status);
+      }
+
+      while (status == 6) {
+        this.offset += 1;
+        const request = this.buildTagListRequest(programName);
+        const eipHeader = this.buildEIPHeader(request);
+        const [status, retData] = await this.getBytes(eipHeader);
+        if (status == 0 || status == 6)
+          this.extractTagPacket(retData, programName);
+        else {
+          const err = get_error_code(status);
+          throw new LogixError(`Failed to get program tag list ${err}`, status);
+        }
+      }
+    }
+    return;
+  }
+  /**
+   * @description Requests tag list for a specific program and returns a list of LgxTag type
+   * @param {String} programName
+   */
+  async _getProgramTagList(programName) {
+    this.offset = 0;
+    delete this.context.tagList;
+
+    const request = this.buildTagListRequest(programName);
+    const eipHeader = this.buildEIPHeader(request);
+    const [status, retData] = await this.getBytes(eipHeader);
+    if (status == 0 || status == 6) this.extractTagPacket(retData, programName);
+    else {
+      const err = get_error_code(status);
+      throw new LogixError(`Failed to get program tag list ${err}`, status);
+    }
+
+    while (status == 6) {
+      this.offset += 1;
+      const request = this.buildTagListRequest(programName);
+      const eipHeader = this.buildEIPHeader(request);
+      const [status, retData] = await this.getBytes(eipHeader);
+      if (status == 0 || status == 6)
+        this.extractTagPacket(retData, programName);
+      else {
+        const err = get_error_code(status);
+        throw new LogixError(`Failed to get program tag list ${err}`, status);
+      }
+    }
+
+    return;
+  }
+
+  async _getUDT() {
+    //get only tags that are a struct
+    const struct_tags = this.context.tagList.filter(x => x.struct === 1);
+    // reduce our struct tag list to only unique instances
+    const seen = new Set();
+    const unique = struct_tags.filter(obj => {
+      if (obj.dataTypeValue && !seen.has(obj.dataTypeValue)) {
+        seen.add(obj.dataTypeValue);
+        return true;
+      }
+      return false;
+    });
+    const template = {};
+    for (const u of unique) {
+      const temp = await this.getTemplateAttribute(u.dataTypeValue);
+      const data = temp.slice(46);
+      const val = unpackFrom("<I", data, true, 10)[0];
+      const words = val * 4 - 23;
+      const member_count = parseInt(unpackFrom("<H", data, true, 24))[0];
+      template[u.dataTypeValue] = [words, "", member_count];
+    }
+    for (let [key, value] of Object.entries(template)) {
+      const t = await this.getTemplate(key, value[0]);
+      const size = value[2] * 8;
+      const p = t.slice(50);
+      const member_bytes = p.slice(size);
+      let split_char = pack("<b", 0x00);
+      const members = member_bytes.split(split_char);
+      split_char = pack("<b", 0x3b);
+      name = members[0].split(split_char)[0];
+      template[key][1] = String(name.toString());
+    }
+    for (const tag of this.context.tagList) {
+      if (tag.dataTypeValue in template) {
+        tag.dataType = template[tag.dataTypeValue][1];
+      } else if (tag.symbolType in this.context.CIPTypes) {
+        tag.dataType = this.context.CIPTypes[tag.symbolType][1];
+      }
+    }
+    return;
+  }
+  /**
+   * @description Get the attributes of a UDT
+   * @param {Number} instance
+   * @returns {Promise<Buffer>}
+   */
+  async getTemplateAttribute(instance) {
+    const readRequest = this.buildTemplateAttributes(instance);
+    const eipHeader = this.buildEIPHeader(readRequest);
+    const [_, retData] = await this.getBytes(eipHeader);
+    return retData;
+  }
+  /**
+   * @description  Get the members of a UDT so we can get it
+   * @param {Number} instance
+   * @param {Number} dataLen
+   * @returns {Promise<Buffer>}
+   */
+  async getTemplate(instance, dataLen) {
+    const readRequest = this.readTemplateService(instance, dataLen);
+    const eipHeader = this.buildEIPHeader(readRequest);
+    const [_, retData] = await this.getBytes(eipHeader);
+    return retData;
+  }
+  /**
+   *
+   * @param {Number} instance
+   * @returns {Buffer}
+   */
+  buildTemplateAttributes(instance) {
     return pack(
-      "<BBBBBBBBH",
-      0x52, //CIPService
-      0x02, //CIPPathSize
-      0x20, // CIPClassType
-      0x06, //CIPClass
-      0x24, // CIPInstanceType
-      0x01, // CIPInstance
-      0x0a, // CIPPriority
-      0x0e, // CIPTimeoutTicks
-      0x06 // ServiceSize
+      "<BBBBHHHHHHH",
+      0x03,
+      0x03,
+      0x20,
+      0x6c,
+      0x25,
+      instance,
+      0x04,
+      0x04,
+      0x03,
+      0x02,
+      0x01
+    );
+  }
+  /**
+   * @returns {Buffer}
+   */
+  readTemplateService(instance, dataLen) {
+    return pack(
+      "<BBBBHHIH",
+      0x4c,
+      0x03,
+      0x20,
+      0x6c,
+      0x25,
+      instance,
+      0x00,
+      dataLen
     );
   }
   /**
@@ -1027,7 +1395,7 @@ class EIPSocket extends Socket {
    *      slot
    * @returns {LGXDevice}
    */
-  getModuleProperties(slot) {
+  getModuleProperties(slot = 0) {
     const AttributePacket = pack(
       "<10B",
       0x01,
@@ -1054,8 +1422,11 @@ class EIPSocket extends Socket {
     retData = Buffer.concat([pad, retData], pad.length + retData.length);
     const status = unpack_from("<B", retData, 46)[0];
 
-    return status == 0 ? _parseIdentityResponse(retData) : new LGXDevice();
+    return status == 0
+      ? Response(undefined, _parseIdentityResponse(retData), status)
+      : Response(undefined, new LGXDevice(), status);
   }
+
   /**
    * @private
    * @description get packet string to send CIP data
@@ -1192,7 +1563,6 @@ class EIPSocket extends Socket {
       });
   }
   /**
-   * @override
    * @description Destroy and disconnect EIP socket
    * @returns {Promise<void>}
    */
@@ -1248,31 +1618,47 @@ function parseLgxTag(packet, programName) {
   const t = new LgxTag();
   const length = unpackFrom("<H", packet, true, 4)[0];
   const name = packet.slice(6, length + 6).toString("utf8");
-  if (programName) t.TagName = String(programName + "." + name);
-  else t.TagName = String(name);
-  t.InstanceID = unpackFrom("<H", packet, true, 0)[0];
+  if (programName) t.tagName = String(programName + "." + name);
+  else t.tagName = String(name);
+  t.instanceID = unpackFrom("<H", packet, true, 0)[0];
 
   const val = unpackFrom("<H", packet, true, length + 6)[0];
 
-  t.SymbolType = val & 0xff;
-  t.DataTypeValue = val & 0xfff;
-  t.Array = (val & 0x6000) >> 13;
-  t.Struct = (val & 0x8000) >> 15;
+  t.symbolType = val & 0xff;
+  t.dataTypeValue = val & 0xfff;
+  t.array = (val & 0x6000) >> 13;
+  t.struct = (val & 0x8000) >> 15;
 
-  if (t.Array) t.Size = unpackFrom("<H", packet, true, length + 8)[0];
-  else t.Size = 0;
+  if (t.array) t.size = unpackFrom("<H", packet, true, length + 8)[0];
+  else t.size = 0;
   return t;
 }
 
-function LgxTag() {
-  this.tagName = "";
-  this.instanceID = 0x00;
-  this.symbolType = 0x00;
-  this.dataTypeValue = 0x00;
-  this.dataType = "";
-  this.array = 0x00;
-  this.struct = 0x00;
-  this.size = 0x00;
+class LgxTag {
+  constructor() {
+    this.tagName = "";
+    this.instanceId = 0x00;
+    this.symbolType = 0x00;
+    this.dataTypeValue = 0x00;
+    this.dataType = "";
+    this.array = 0x00;
+    this.struct = 0x00;
+    this.size = 0x00;
+  }
 }
 
-module.exports = EIPSocket;
+function Response(tag_name, value, status) {
+  if (typeof tag_name !== "undefined") this.tagName = tag_name;
+  this.value = value;
+  this.status = get_error_code(status);
+}
+//Get the CIP error code string
+function get_error_code(status) {
+  return status in cipErrorCodes
+    ? cipErrorCodes[status]
+    : "Unknown error ".concat(status);
+}
+
+exports.Response = Response;
+exports.EIPContext = EIPContext;
+exports.EIPSocket = EIPSocket;

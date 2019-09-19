@@ -188,6 +188,12 @@ class PLC extends EIPSocketPool {
       return super
         .acquire(socket => {
           if (Array.isArray(tag)) {
+            if (tag.length === 1) return [socket.readTag(tag[0], options)];
+            if (options.dataType)
+              throw new TypeError(
+                "Datatype should be set to None when reading lists"
+              );
+            return socket.multiReadTag(tag);
           } else {
             return socket.readTag(tag, options);
           }
@@ -215,12 +221,7 @@ class PLC extends EIPSocketPool {
     the arguments, write a single tag, or write an array */
     return Promise.try(() => {
       return super
-        .acquire(socket => {
-          if (Array.isArray(tag)) {
-          } else {
-            return socket.writeTag(tag, value, options);
-          }
-        })
+        .acquire(socket => socket.writeTag(tag, value, options))
         .catch(err => {
           if (err instanceof TimeoutError) {
             err = new TimeoutError(
@@ -247,7 +248,7 @@ class PLC extends EIPSocketPool {
         String(pin)
       ).then(tag => {
         return this.write(tag, Number(value), options).then(
-          () => new Pin(tag, value)
+          value => new Pin(tag, value)
         );
       });
     });
@@ -263,7 +264,7 @@ class PLC extends EIPSocketPool {
         this._pingMapping["digital"]["output"],
         String(pin)
       ).then(tag => {
-        return this.read(tag, options);
+        return this.read(tag, options).then(value => new Pin(tag, value));
       });
     });
   }
@@ -278,9 +279,7 @@ class PLC extends EIPSocketPool {
         this._pingMapping["digital"]["input"],
         String(pin)
       ).then(tag => {
-        return this.read(tag, options).then(value =>
-          this._returnMapping(tag, value)
-        );
+        return this.read(tag, options).then(value => new Pin(tag, value));
       });
     });
   }
@@ -296,7 +295,9 @@ class PLC extends EIPSocketPool {
         this._pingMapping["analog"]["output"],
         String(pin)
       ).then(tag => {
-        return this.write(tag, Number(value), options);
+        return this.write(tag, Number(value), options).then(
+          value => new Pin(tag, value)
+        );
       });
     });
   }
@@ -311,7 +312,7 @@ class PLC extends EIPSocketPool {
         this._pingMapping["analog"]["output"],
         String(pin)
       ).then(tag => {
-        return this.read(tag, options);
+        return this.read(tag, options).then(value => new Pin(tag, value));
       });
     });
   }
@@ -326,8 +327,70 @@ class PLC extends EIPSocketPool {
         this._pingMapping["analog"]["input"],
         String(pin)
       ).then(tag => {
-        return this._readTag(tag, options);
+        return this.read(tag, options).then(value => new Pin(tag, value));
       });
+    });
+  }
+  /**
+   * @description Read multiple tags in one request
+   * @param {Array} tags
+   */
+  multiRead(tags) {
+    return Promise.try(() =>
+      super.acquire(socket => socket.multiReadTag(tags))
+    );
+  }
+  /**
+   * @description Retrieves the tag list from the PLC
+   *     Optional parameter allTags set to True
+   *     If is set to False, it will return only controller
+   *     otherwise controller tags and program tags.
+   */
+  getTagList() {
+    return Promise.try(() => super.acquire(socket => socket.getTagList()));
+  }
+  /**
+   * @descriptionRetrieves a program tag list from the PLC
+   *    programName = "Program:ExampleProgram"
+   */
+  getProgramTagList(programName) {
+    return Promise.try(() =>
+      super.acquire(socket => socket.getProgramTagList(programName))
+    );
+  }
+  /**
+   * @description Retrieves a program names list from the PLC
+   *    Sanity check: checks if programNames is empty
+   *     and runs _getTagList
+   */
+  getProgramList() {
+    return Promise.try(() => super.acquire(socket => socket.getProgramList()));
+  }
+  /**
+   * @description  Get the properties of module in specified slot
+   * @param {Number} slot
+   */
+  getModuleProperties(slot = 0) {
+    return Promise.try(() =>
+      super.acquire(socket => socket.getModuleProperties(slot))
+    );
+  }
+  /**
+   * @description get current time
+   * @param {Boolean} raw get microseconds
+   * @return {Date|Number}
+   */
+  getTime(raw) {
+    return super.acquire(socket => {
+      return Promise.try(() => socket.getTime(raw));
+    });
+  }
+  /**
+   * @description Set current time
+   */
+  setTime() {
+    return super.acquire(socket => {
+      return Promise.try(() => socket.setTime());
     });
   }
   /**
@@ -349,14 +412,13 @@ class PLC extends EIPSocketPool {
     );
   }
   /**
+   * @description Query all the EIP devices on the network
    * @param {Number} timeout
    * @param {Object} options
-   * @description Query all the EIP devices on the network
    * @returns {Promise<Array<LGXDevice>>} devices
    */
-  static discover(timeout = 10000, options) {
-    const { family = "IPv4", waitTime = 2000, onFound, ...socketOptions } =
-      options || {};
+  static discover(timeout = 5000, options) {
+    const { family = "IPv4", onFound, ...socketOptions } = options || {};
     if (family !== "IPv4" && family !== "IPv6")
       throw new EvalError("Incorrect ip family, must be IPv4 or IPv6");
     const devices = [];
@@ -371,58 +433,47 @@ class PLC extends EIPSocketPool {
         .map(i => i.address);
       // we're going to send a request for all available ipv4
       //  addresses and build a list of all the devices that reply
-      setTimeout(() => {
-        for (const client of clients.values()) {
-          client.idTimeout && clearInterval(client.idTimeout);
-          client.close();
-          clients.delete(client);
-        }
-        resolve(devices);
-      }, timeout);
-
       for (const ip of addresses) {
-        let socket = dgram.createSocket({
+        const socket = dgram.createSocket({
           type: `udp${family[3]}`,
           ...socketOptions
         });
         if (platform !== "linux") socket.bind(0, ip);
-        const checkResolve = () => clients.size === 0 && resolve(devices);
+
         const waitRecv = () => {
           socket.idTimeout = setTimeout(() => {
-            socket.off("message", onMessage);
             socket.removeAllListeners();
             socket.unref();
             socket.close();
             clients.delete(socket);
-            checkResolve();
-          }, waitTime);
-        };
-        const onMessage = msg => {
-          socket.idTimeout && clearTimeout(socket.idTimeout);
-          socket.idTimeout = undefined;
-          const context = unpackFrom("<Q", msg, true, 14)[0];
-          if (context.toString() === "470018779464") {
-            delete rinfo.size;
-            const device = _parseIdentityResponse(msg, rinfo);
-            if (device.IPAddress) {
-              devices.push(device);
-              onFound && onFound(device, devices.length);
-            }
-          } else waitRecv();
+            clients.size === 0 && resolve(devices);
+          }, timeout);
         };
         socket.once("listening", () => {
           //socket.setMulticastInterface("255.255.255.255");
           socket.setBroadcast(true);
           socket.setMulticastTTL(1);
+          waitRecv();
           socket.send(request, port, "255.255.255.255", (err, bytes) => {
             if (err) {
               socket.close();
               return reject(err);
             }
             clients.add(socket);
-            socket.on("message", onMessage);
-            checkResolve();
-            waitRecv();
+            socket.on("message", msg => {
+              socket.idTimeout && clearTimeout(socket.idTimeout);
+              socket.idTimeout = undefined;
+              const context = unpackFrom("<Q", msg, true, 14)[0];
+              if (context.toString() === "470018779464") {
+                delete rinfo.size;
+                const device = _parseIdentityResponse(msg, rinfo);
+                if (device.IPAddress) {
+                  devices.push(device);
+                  onFound && onFound(device, devices.length);
+                }
+              }
+              waitRecv();
+            });
           });
         });
       }
@@ -456,14 +507,6 @@ class PLC extends EIPSocketPool {
       err.value = value;
       throw err;
     }
-  }
-  /**
-   * @returns {Pin}
-   * @param {String} tagName
-   * @param {*} value
-   */
-  _returnMapping(tagName, value) {
-    return new Pin(tagName, value);
   }
   /**
    * @prinvate

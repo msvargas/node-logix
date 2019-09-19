@@ -95,6 +95,20 @@ function _getBitOfWord(tag, value) {
 }
 
 /**
+ * Helper to return dynamic name function
+ * @param {String} name
+ * @param {Function} body
+ */
+
+function nameFunction(name, body) {
+  return {
+    [name]() {
+      return body();
+    }
+  }[name];
+}
+
+/**
  * @description replace pin mapping
  * @param {String} str
  * @param {Number} pin
@@ -153,6 +167,7 @@ function _parseIdentityResponse(data, rinfo) {
   return resp;
 }
 
+exports.nameFunction = nameFunction
 exports.unpackFrom = unpackFrom;
 exports.pack = pack;
 exports.LGXDevice = LGXDevice;
