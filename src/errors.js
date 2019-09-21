@@ -1,6 +1,6 @@
 "use strict";
 
-const cipErrorCodes = require("../assets/CIPErrorCodes.json");
+const cipErrorCodes = require("../resources/CIPErrorCodes.json");
 
 class ValueError extends Error {
   constructor(message) {

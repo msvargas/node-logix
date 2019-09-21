@@ -9,7 +9,7 @@ const comm = new PLC("192.168.100.174");
 comm
   .connect()
   .then(() => {
-    return comm.write("LargeArray[247]", [
+    return comm.write("LargeArray[10]", [
       50,
       51,
       52,

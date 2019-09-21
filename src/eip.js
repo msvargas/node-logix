@@ -35,7 +35,7 @@ const {
   LGXDevice,
   unpackFrom
 } = require("./utils");
-const pinMapping = require("../assets/pin-mapping.json"); // ping mapping to use digitalWrite... as Arduino
+const pinMapping = require("../resources/pin-mapping.json"); // ping mapping to use digitalWrite... as Arduino
 const {
   ValueError,
   LogixError,

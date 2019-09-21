@@ -13,8 +13,8 @@
  * 
  */
 
-const devices = require("../assets/devices.json");
-const vendors = require("../assets/vendors.json");
+const devices = require("../resources/devices.json");
+const vendors = require("../resources/vendors.json");
 
 class LGXDevice {
   constructor(address) {

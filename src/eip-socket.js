@@ -2,7 +2,7 @@
 const { Socket } = require("net");
 const Promise = require("bluebird");
 const { EventEmitter } = require("events");
-const CIPTypes = require("../assets/CIPTypes.json");
+const CIPTypes = require("../resources/CIPTypes.json");
 
 const {
   unpackFrom,
@@ -25,7 +25,7 @@ const {
   ConnectionTimeoutError,
   ConnectionError
 } = require("./errors");
-const context_dict = require("../assets/CIPContext.json");
+const context_dict = require("../resources/CIPContext.json");
 
 class EIPContext extends EventEmitter {
   constructor(props) {

@@ -4,7 +4,7 @@ Nodejs package to handle PLC as Micro820 of Allen Bradley
 
 - Promise response with bluebird
 
-- Manager multiple connections to write/read tags using pooling with (generic-pool)[https://www.npmjs.com/package/generic-pool]
+- Manager multiple connections to write/read tags using pooling with generic-pool
 
 - Listener events as *connect*, *connect_error*, *disconnect* or *found* (discover function)
 
@@ -93,15 +93,15 @@ PLC.discover().then(devices => {
 
 ```js
 PLC.defaultOptions = {
-  allowHalfOpen: true,
-  Micro800: true,
-  port: 44818,
+  allowHalfOpen: true, // Socket option nodejs, keep open TCP socket
+  Micro800: true,     // use path for Micro800
+  port: 44818,        // default port EIP
   connectTimeout: 3000,
-  arduinoMode: true,
-  pool: {
+  arduinoMode: true,  // Enable Arduino functions only Micro800
+  pool: { // options generic-pool
     min: 0,
     max: 3,
-    Promise,
+    Promise, //bluebird
     priorityRange: 2,
     fifo: false,
     testOnBorrow: true,
@@ -116,10 +116,43 @@ PLC.defaultOptions = {
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENCE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details
 
-# Notes:
-For Micro800 of CIP Service if limited, no working getProgramList only get global tag names
+# Notes
 
+- For Micro800 of CIP Service if limited, no working getProgramList, getModuleProperties(0)..., only get global tag names
+
+- ArduinoMode only working with Micro800 enable, to working with other PLC, yout must be create custom pinMapping JSON and replacePin function: 
+```js
+comm.pinMapping =  {
+    "digital" : {
+        "output": "_IO_EM_DO_{dd}",
+        "input": "_IO_EM_DI_{dd}"
+    },
+    "analog" : {
+        "input" : "_IO_EM_AI_{dd}",
+        "output" : "_IO_EM_AO_{dd}"
+    }
+  }
+/**
+ * @description replace pin mapping
+ * @param {String} str
+ * @param {Number} pin
+ * @param {String}
+ */
+function _replacePin(str = "", pin) {
+  if (typeof str !== "string")
+    throw new TypeError("Pin must be a string not a " + typeof str);
+  if (typeof pin === "string" && !/\d{1,}/.test(pin))
+    throw new TypeError("Pin must has number to assing pin value: " + pin);
+  const match = str.match(/{(d+)}/);
+  if (match === null)
+    throw new PinMappingError(`Replace: ${str} no match with {d} or {dd}`);
+  if (match.index > 0) {
+    return str.replace(match[0], String(pin).padStart(match[1].length, "0"));
+  }
+  return str;
+}
+```
 # Issues
 - For write array, only write 256 positions
