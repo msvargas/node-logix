@@ -2,8 +2,12 @@
 
 Nodejs package to handle PLC as Micro820 of Allen Bradley
 
+- Promise response with bluebird
+
 - Manager multiple connections to write/read tags using pooling with (generic-pool)[https://www.npmjs.com/package/generic-pool]
+
 - Listener events as *connect*, *connect_error*, *disconnect* or *found* (discover function)
+
 - Ardunio mode: functions as digitalRead, digitalWrite... 
 
 ## Install package
@@ -113,3 +117,9 @@ PLC.defaultOptions = {
 ## License
 
 This project is licensed under the MIT License - see the [LICENCE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details
+
+# Notes:
+For Micro800 of CIP Service if limited, no working getProgramList only get global tag names
+
+# Issues
+- For write array, only write 256 positions
