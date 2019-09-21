@@ -4,7 +4,7 @@
 
 const PLC = require("../index");
 
-const comm = new PLC("192.168.100.174", { arduinoMode : true });
+const comm = new PLC("192.168.100.174", { arduinoMode: true });
 console.time("PLC connected successful! ");
 comm
   .connect()

@@ -599,7 +599,7 @@ class EIPSocket extends Socket {
       const dataSize = this.context.CIPTypes[datatype][0];
       let numbytes = data.length - dataSize,
         counter = 0;
-      this.offset = 0
+      this.offset = 0;
       for (let i = 0; i < elements; i++) {
         let index = 52 + counter * dataSize;
         if (datatype === 160) {

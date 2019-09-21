@@ -11,7 +11,7 @@ comm
   .then(() => {
     return (
       comm
-        .read("LargeArray[900]", { count : 100})
+        .read("LargeArray[900]", { count: 100 })
         //.then(console.log)
         .then(data => console.log(data))
     );
