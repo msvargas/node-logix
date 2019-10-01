@@ -2,7 +2,7 @@
  * The simplest example of writing and reading a tag from a PLC
  */
 
-const PLC = require("../index");
+const PLC = require("../index").default;
 
 const comm = new PLC("192.168.100.174", { arduinoMode: true });
 console.time("PLC connected successful! ");

@@ -1,4 +1,4 @@
-const PLC = require("../src/eip");
+const PLC = require("../index").default;
 
 const comm = new PLC("192.168.100.9");
 

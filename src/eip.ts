@@ -52,7 +52,6 @@ import {
   Response
 } from "./eip-socket";
 import LGXDevice from "./lgxDevice";
-
 const { TimeoutError } = require("generic-pool/lib/errors");
 
 class Pin {
@@ -86,7 +85,7 @@ export interface IDiscoverOptions extends SocketOptions {
 }
 
 export interface ICustomSocket {
-  idTimeout? : NodeJS.Timeout
+  idTimeout?: NodeJS.Timeout;
 }
 
 export default class PLC extends EIPSocketPool implements IOptions {
@@ -544,12 +543,12 @@ export default class PLC extends EIPSocketPool implements IOptions {
       // we're going to send a request for all available ipv4
       //  addresses and build a list of all the devices that reply
       for (const ip of addresses) {
-        const socket : dgram.Socket & ICustomSocket = dgram.createSocket({
+        const socket: dgram.Socket & ICustomSocket = dgram.createSocket({
           type: `udp${family[3]}`,
           ...socketOptions
         });
         if (platform !== "linux") socket.bind(0, ip);
-        
+
         const waitRecv = () => {
           socket.idTimeout = setTimeout(() => {
             socket.removeAllListeners();
@@ -559,7 +558,7 @@ export default class PLC extends EIPSocketPool implements IOptions {
             clients.size === 0 && resolve(devices);
           }, timeout);
         };
-        
+
         socket.once("listening", () => {
           //socket.setMulticastInterface("255.255.255.255");
           socket.setBroadcast(true);
@@ -606,7 +605,7 @@ export default class PLC extends EIPSocketPool implements IOptions {
    * @param {Number|String} pin
    * @param {*} value
    */
-  _checkPin(pin: string | number, value?: any): void | never {
+  private _checkPin(pin: string | number, value?: any): void | never {
     if (pin === null || typeof pin === "undefined") {
       throw new TypeError("Invalid pin, must be different undefined or null");
     }
@@ -621,7 +620,7 @@ export default class PLC extends EIPSocketPool implements IOptions {
    * @prinvate
    * @description check valid mapping
    */
-  _getPinMapping(str: string, pin: string) {
+  private _getPinMapping(str: string, pin: string) {
     return Bluebird.try(() => {
       if (!this._replacePin || !this._pingMapping)
         throw new PinMappingError(
@@ -634,20 +633,13 @@ export default class PLC extends EIPSocketPool implements IOptions {
       }
     });
   }
+  static TimeoutError = TimeoutError;
+  static LogixError = LogixError;
+  static ValueError = ValueError;
+  static ConnectionError = ConnectionError;
+  static ConnectionTimeoutError = ConnectionTimeoutError;
+  static ConnectionLostError = ConnectionLostError;
+  static ForwarOpenError = ForwarOpenError;
+  static RegisterSessionError = RegisterSessionError;
+  static DisconnectedError = DisconnectedError;
 }
-
-/**
- * @description Instance Errors
- */
-/* PLC.TimeoutError = TimeoutError;
-PLC.LogixError = LogixError;
-PLC.ValueError = ValueError;
-PLC.ConnectionError = ConnectionError;
-PLC.ConnectionTimeoutError = ConnectionTimeoutError;
-PLC.ConnectionLostError = ConnectionLostError;
-PLC.ForwarOpenError = ForwarOpenError;
-PLC.RegisterSessionError = RegisterSessionError;
-PLC.DisconnectedError = DisconnectedError;
-
-module.exports = PLC;
-exports.default = PLC; */

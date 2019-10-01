@@ -862,7 +862,7 @@ export default class EIPSocket extends Socket {
    * @param {Number} dt dataType of tag
    * @returns {Boolean}
    */
-  _initial_read(baseTag: string, dt: number | null) {
+  private _initial_read(baseTag: string, dt: number | null) {
     return Bluebird.try(() => {
       if (baseTag in this.context.knownTags) return true;
       if (dt) {
@@ -1297,7 +1297,7 @@ export default class EIPSocket extends Socket {
   /**
    * @description Requests the controller tag list and returns a list of LgxTag type
    */
-  async _getTagList() {
+  private async _getTagList() {
     this.offset = 0;
     delete this.context.programNames;
     delete this.context.tagList;
@@ -1328,7 +1328,7 @@ export default class EIPSocket extends Socket {
   /**
    * @description Requests all programs tag list and appends to taglist (LgxTag type)
    */
-  async _getAllProgramsTags() {
+  private async _getAllProgramsTags() {
     this.offset = 0;
     if (!this.context.programNames) return;
     for (const programName of this.context.programNames) {
@@ -1362,7 +1362,7 @@ export default class EIPSocket extends Socket {
    * @description Requests tag list for a specific program and returns a list of LgxTag type
    * @param {String} programName
    */
-  async _getProgramTagList(programName?: string) {
+  private async _getProgramTagList(programName?: string) {
     this.offset = 0;
     delete this.context.tagList;
 
@@ -1543,7 +1543,7 @@ export default class EIPSocket extends Socket {
    * @param {String} string
    * @returns {String}
    */
-  _makeString(string: string): Array<number> {
+  private _makeString(string: string): Array<number> {
     const work = [];
     let temp = "";
     if (this.context.Micro800) {
