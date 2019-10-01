@@ -116,7 +116,7 @@ PLC.defaultOptions = {
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details
+This project is licensed under the MIT License - see the [LICENCE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details
 
 # Notes
 

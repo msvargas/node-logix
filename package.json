@@ -4,7 +4,8 @@
   "author": "Michael Vargas",
   "scripts": {
     "prettier": "prettier --write src/**/*.js examples/*.js",
-    "publish": "npm publish --access public"
+    "publish:npm": "npm publish --access public",
+    "tsc": "tsc"
   },
   "dependencies": {
     "bluebird": "^3.5.5",
@@ -12,7 +13,12 @@
     "python-struct": "^1.1.1"
   },
   "devDependencies": {
-    "prettier": "^1.18.2"
+    "@types/bluebird": "^3.5.27",
+    "@types/generic-pool": "^3.1.9",
+    "@types/node": "^12.7.8",
+    "@types/python-struct": "^1.0.0",
+    "prettier": "^1.18.2",
+    "typescript": "^3.6.3"
   },
   "name": "node-logix",
   "description": "Nodejs EtherNet/IP to handle PLC as Micro820, Logix...",
