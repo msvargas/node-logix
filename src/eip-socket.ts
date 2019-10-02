@@ -1,5 +1,7 @@
 import { Socket } from "net";
 import { EventEmitter } from "events";
+import Bluebird from "bluebird";
+import { Pool, Options } from "generic-pool";
 import {
   unpackFrom,
   pack,
@@ -14,7 +16,7 @@ import {
 import {
   RegisterSessionError,
   ForwarOpenError,
-  cipErrorCodes,
+  getErrorCode,
   LogixError,
   ConnectionLostError,
   ConnectionTimeoutError,
@@ -23,8 +25,6 @@ import {
 import LGXDevice from "./lgxDevice";
 import CIPTypes from "../resources/CIPTypes.json";
 import context_dict from "../resources/CIPContext.json";
-import Bluebird, { any } from "bluebird";
-import { Pool, Options } from "generic-pool";
 
 export interface ITagReadOptions {
   count?: number;
@@ -76,14 +76,24 @@ export class EIPContext extends EventEmitter implements IEIPContextOptions {
   public _connecting: boolean = false;
   public tagList?: Array<LgxTag>;
   public programNames?: string[];
-  public timeoutReceive: number = 3000;
+  public timeoutReceive: number = 15000;
   public _pool?: Pool<EIPSocket>;
 
   constructor(options: IEIPContextOptions) {
     super();
+    if (
+      options.connectionSize &&
+      (options.connectionSize < 500 || options.connectionSize > 4000)
+    ) {
+      throw new EvalError(
+        "ConnectionSize must be an integer between 500 and 4000"
+      );
+    }
     Object.assign(this, options);
-    if (this.Micro800) this.connectionPathSize = 2;
-    else
+    if (this.Micro800) {
+      this.connectionPathSize = 2;
+      this.vendorId = 0x01;
+    } else
       this.connectionPath = [0x01, this.processorSlot, 0x20, 0x02, 0x24, 0x01];
   }
   /**
@@ -133,20 +143,20 @@ export default class EIPSocket extends Socket {
    * @description check if socket is connected
    * @returns {Boolean}
    */
-  get connected() {
+  get connected(): boolean {
     return this._connected && !this.destroyed;
   }
   /**
    * @description Check if socket is disconnected
    * @returns {Boolean}
    */
-  get disconnected() {
+  get disconnected(): boolean {
     return !this.connected;
   }
   /**
    * @description Check if closing
    */
-  get closing() {
+  get closing(): boolean {
     return this._closing;
   }
   /**
@@ -154,7 +164,7 @@ export default class EIPSocket extends Socket {
    * @description Register our CIP connection
    * @returns {Buffer}
    */
-  buildRegisterSession() {
+  buildRegisterSession(): Buffer {
     return pack(
       "<HHIIQIHH",
       0x0065,
@@ -172,7 +182,7 @@ export default class EIPSocket extends Socket {
    * @description Unregister CIP connection
    * @returns {Buffer}
    */
-  buildUnregisterSession() {
+  buildUnregisterSession(): Buffer {
     return pack(
       "<HHIIQI",
       0x66,
@@ -188,8 +198,8 @@ export default class EIPSocket extends Socket {
    * @description  Assemble the forward open packet
    * @returns {Buffer}
    */
-  buildForwardOpenPacket() {
-    const forwardOpen = this.buildCIPForwardOpen() as any;
+  buildForwardOpenPacket(): Buffer {
+    const forwardOpen = this.buildCIPForwardOpen();
     const rrDataHeader = this.buildEIPSendRRDataHeader(forwardOpen.length);
     return Buffer.concat(
       [rrDataHeader, forwardOpen],
@@ -201,7 +211,7 @@ export default class EIPSocket extends Socket {
    * @description  Assemble the forward close packet
    * @returns {Buffer}
    */
-  buildForwardClosePacket() {
+  buildForwardClosePacket(): Buffer {
     const forwardClose = this.buildForwardClose();
     const rrDataHeader = this.buildEIPSendRRDataHeader(forwardClose.length);
     return Buffer.concat(
@@ -215,8 +225,8 @@ export default class EIPSocket extends Socket {
    *    this will sequp the CIP connection parameters
    * @returns {Buffer}
    */
-  buildCIPForwardOpen() {
-    if (!this.context) return;
+  buildCIPForwardOpen(): Buffer | never {
+    if (!this.context) throw new Error("Please must be assing context");
     this.serialNumber = ~~(Math.random() * 65001);
     let CIPService,
       pack_format,
@@ -268,7 +278,7 @@ export default class EIPSocket extends Socket {
    * @description Forward Close packet for closing the connection
    * @returns {Buffer}
    */
-  buildForwardClose() {
+  buildForwardClose(): Buffer {
     const ForwardClose = pack(
       "<BBBBBBBBHHI",
       0x4e,
@@ -347,7 +357,6 @@ export default class EIPSocket extends Socket {
     );
     this.sequenceCounter += 1;
     this.sequenceCounter = this.sequenceCounter % 0x10000;
-    //console.log(EIPHeaderFrame.length, "tag length:", tagIOI.length);
     return Buffer.concat(
       [EIPHeaderFrame, tagIOI],
       EIPHeaderFrame.length + tagIOI.length
@@ -357,7 +366,7 @@ export default class EIPSocket extends Socket {
    * @description Service header for making a multiple tag request
    * @returns {Buffer}
    */
-  buildMultiServiceHeader() {
+  buildMultiServiceHeader(): Buffer {
     return pack(
       "<BBBBBB",
       0x0a, // MultiService
@@ -419,7 +428,7 @@ export default class EIPSocket extends Socket {
    * @param {Number} elements
    * @returns {Buffer}
    */
-  addPartialReadIOI(tagIOI: Buffer, elements: number) {
+  addPartialReadIOI(tagIOI: Buffer, elements: number): Buffer {
     const data1 = pack("<BB", 0x52, ~~(tagIOI.length / 2));
     const data2 = pack("<H", elements);
     const data3 = pack("<I", this.offset);
@@ -435,7 +444,7 @@ export default class EIPSocket extends Socket {
    * @param {Number} elements
    * @returns {Buffer}
    */
-  addReadIOI(tagIOI: Buffer, elements: number) {
+  addReadIOI(tagIOI: Buffer, elements: number): Buffer {
     const data1 = pack("<BB", 0x4c, ~~(tagIOI.length / 2));
     const data2 = pack("<H", elements);
     return Buffer.concat(
@@ -459,7 +468,7 @@ export default class EIPSocket extends Socket {
    * @param {String} tagName
    * @param {Boolean} isBoolArray
    */
-  buildTagIOI(tagName: string, isBoolArray: boolean) {
+  buildTagIOI(tagName: string, isBoolArray: boolean): Buffer {
     let RequestTagData = Buffer.from([]);
     const tagArray = tagName.split(".");
     tagArray.forEach((_tag, i) => {
@@ -572,7 +581,7 @@ export default class EIPSocket extends Socket {
    * @description build unconnected send to request tag database
    * @returns {Buffer}
    */
-  buildCIPUnconnectedSend() {
+  buildCIPUnconnectedSend(): Buffer {
     return pack(
       "<BBBBBBBBH",
       0x52, //CIPService
@@ -598,8 +607,8 @@ export default class EIPSocket extends Socket {
   async parseReply(
     tag: string,
     elements: number,
-    data: Buffer | Array<number | string>
-  ) {
+    data: Buffer | Array<number | string | boolean> | boolean | string
+  ): Promise<Buffer | Array<number | string | boolean> | boolean | string> {
     const [_, basetag, index] = _parseTagName(tag, 0);
     const datatype = this.context.knownTags[basetag][0],
       bitCount = (this.context.CIPTypes[datatype][0] as number) * 8;
@@ -628,7 +637,11 @@ export default class EIPSocket extends Socket {
    * @param {*} data
    * @returns {Array}
    */
-  async getReplyValues(tag: string, elements: number, data: any) {
+  async getReplyValues(
+    tag: string,
+    elements: number,
+    data: any
+  ): Promise<Array<any>> {
     let status = unpackFrom("<B", data, true, 48)[0] as number;
 
     if (status == 0 || status == 6) {
@@ -685,7 +698,7 @@ export default class EIPSocket extends Socket {
       }
       return vals;
     } else {
-      const err = get_error_code(status);
+      const err = getErrorCode(status);
       throw new LogixError(
         `Failed to read tag-${tag} - ${err}`,
         status as number
@@ -700,7 +713,11 @@ export default class EIPSocket extends Socket {
    * @param {Number} count
    * @returns {Array<Boolean>}
    */
-  wordsToBits(tag: string, value: Array<number>, count = 0) {
+  wordsToBits(
+    tag: string,
+    value: Array<number>,
+    count: number = 0
+  ): Array<boolean> {
     const [_, basetag, index] = _parseTagName(tag, 0),
       datatype = this.context.knownTags[basetag][0],
       bitCount = <number>this.context.CIPTypes[datatype][0] * 8;
@@ -713,10 +730,10 @@ export default class EIPSocket extends Socket {
       bitPos = parseInt(bitPos);
     }
 
-    const ret = [];
+    const ret: Array<boolean> = [];
     for (const v of value) {
       for (let i = 0; i < bitCount; i++) {
-        ret.push(BitValue(v, i));
+        ret.push(Boolean(BitValue(v, i)));
       }
     }
     return ret.slice(bitPos, bitPos + count);
@@ -727,7 +744,7 @@ export default class EIPSocket extends Socket {
    * @param {Buffer} data
    * @return {Array}
    */
-  multiParser(tags: Array<string>, data: Buffer) {
+  multiParser(tags: Array<string>, data: Buffer): Array<any> {
     //remove the beginning of the packet because we just don't care about it
     const stripped = data.slice(50);
     //const tagCount = unpackFrom("<H", stripped, true, 0)[0];
@@ -822,12 +839,11 @@ export default class EIPSocket extends Socket {
    * @param {String} programName
    * @returns {void}
    */
-  extractTagPacket(data: Buffer, programName?: string) {
+  extractTagPacket(data: Buffer, programName?: string): void {
     // the first tag in a packet starts at byte 50
     let packetStart = 50;
     if (!this.context.tagList) this.context.tagList = [];
     if (!this.context.programNames) this.context.programNames = [];
-    // console.log(data[50:])
     while (packetStart < data.length) {
       //get the length of the tag name
       const tagLen = unpackFrom("<H", data, true, packetStart + 4)[0] as number;
@@ -862,7 +878,7 @@ export default class EIPSocket extends Socket {
    * @param {Number} dt dataType of tag
    * @returns {Boolean}
    */
-  private _initial_read(baseTag: string, dt: number | null) {
+  private _initial_read(baseTag: string, dt: number | null): Bluebird<boolean> {
     return Bluebird.try(() => {
       if (baseTag in this.context.knownTags) return true;
       if (dt) {
@@ -871,9 +887,7 @@ export default class EIPSocket extends Socket {
       }
       const tagData = this.buildTagIOI(baseTag, false),
         readRequest = this.addPartialReadIOI(tagData, 1);
-
       const eipHeader = this.buildEIPHeader(readRequest);
-      //console.log("[EIP HEADER]", eipHeader.toString(), eipHeader.length);
       // send our tag read request
       return this.getBytes(eipHeader).spread((status, retData) => {
         //make sure it was successful
@@ -893,7 +907,7 @@ export default class EIPSocket extends Socket {
           this.context.knownTags[baseTag] = [dataType, dataLen];
           return true;
         } else {
-          let err = get_error_code(<number>status);
+          let err = getErrorCode(<number>status);
           // lost connection
           if (status === 7) {
             err = new ConnectionLostError();
@@ -925,7 +939,7 @@ export default class EIPSocket extends Socket {
     tagIOI: Buffer,
     writeData: Array<any>,
     dataType: number
-  ) {
+  ): Buffer {
     const NumberOfBytes =
       <number>this.context.CIPTypes[dataType][0] * writeData.length;
     let data = pack("<BB", 0x4e, ~~(tagIOI.length / 2));
@@ -966,8 +980,7 @@ export default class EIPSocket extends Socket {
    * @param {Number} dataType
    * @returns {Buffer}
    */
-  addWriteIOI(tagIOI: Buffer, writeData: Array<any>, dataType: number) {
-    //console.log('tagIOI',tagIOI, 'writeData', writeData,dataType)
+  addWriteIOI(tagIOI: Buffer, writeData: Array<any>, dataType: number): Buffer {
     // Add the write command stuff to the tagIOI
     let data = pack("<BB", 0x4d, ~~(tagIOI.length / 2));
     let CIPWriteRequest = Buffer.concat(
@@ -1029,9 +1042,13 @@ export default class EIPSocket extends Socket {
    *  @param {Boolean} emitEvent emit event if value change
    *
    */
-  writeTag(tag: string, value: any, options: ITagWriteOptions = {}) {
+  writeTag(
+    tag: string,
+    value: any,
+    options: ITagWriteOptions = {}
+  ): Bluebird<boolean> {
     const { dataType: dt }: ITagWriteOptions = options;
-    return Bluebird.try(() => {
+    return Bluebird.try<boolean>(() => {
       this.offset = 0;
       const writeData: Array<string | number | Array<number>> = [];
       const [t, b, i] = _parseTagName(tag, 0);
@@ -1047,7 +1064,7 @@ export default class EIPSocket extends Socket {
           } else {
             value = [value];
           }
-          //console.log("value:", value);
+
           for (const v of value) {
             if (dataType == 202 || dataType == 203) {
               writeData.push(Number(v));
@@ -1082,9 +1099,10 @@ export default class EIPSocket extends Socket {
         })
         .spread(status => {
           if (status != 0) {
-            const err = get_error_code(<number>status);
+            const err = getErrorCode(<number>status);
             throw new LogixError(`Write failed -${err}`, <number>status);
           }
+          return true;
         });
     });
   }
@@ -1096,7 +1114,7 @@ export default class EIPSocket extends Socket {
    * @param {Number} dt DataType
    * @returns {Array|Boolean|Number|String}}
    */
-  readTag(tag: string, options: ITagReadOptions = {}) {
+  readTag(tag: string, options: ITagReadOptions = {}): any {
     const { count: elements = 1, dataType: dt } = options;
     return Bluebird.try(() => {
       this.offset = 0;
@@ -1107,7 +1125,7 @@ export default class EIPSocket extends Socket {
           const datatype = this.context.knownTags[b as number][0];
           const bitCount = <number>this.context.CIPTypes[datatype][0] * 8;
           let tagData, words, readRequest;
-          //console.log(this.context.CIPTypes[datatype], datatype);
+
           if (datatype == 211) {
             //bool array
             tagData = this.buildTagIOI(tag, true);
@@ -1133,7 +1151,7 @@ export default class EIPSocket extends Socket {
           if (status == 0 || status == 6)
             return this.parseReply(tag, elements, retData as Buffer);
           else {
-            const err = get_error_code(<number>status);
+            const err = getErrorCode(<number>status);
             throw new LogixError("Read failed-" + err, <number>status);
           }
         });
@@ -1192,7 +1210,7 @@ export default class EIPSocket extends Socket {
       if (status == 0) {
         return this.multiParser(tags, retData);
       } else {
-        const err = get_error_code(status);
+        const err = getErrorCode(status);
         throw new LogixError(
           `Multi-read failed-${tags.toString()} - ${err}`,
           status
@@ -1204,47 +1222,50 @@ export default class EIPSocket extends Socket {
    * @description Requests the PLC clock time
    * @param {Boolean} raw
    */
-  async getTime(raw: boolean) {
+  async getWallClockTime(raw: boolean): Promise<number | Date> {
     const AttributePacket = pack(
       "<BBBBBBH1H",
-      0x03,
-      0x02,
-      0x20,
-      0x8b,
-      0x24,
-      0x01,
-      0x01,
-      0x0b
+      0x03, // AttributeService
+      0x02, // AttributeSize
+      0x20, // AttributeClassType
+      0x8b, // AttributeClass
+      0x24, // AttributeInstanceType
+      0x01, // AttributeInstance
+      0x01, // AttributeCount
+      0x0b // TimeAttribute
     );
     const eipHeader = this.buildEIPHeader(AttributePacket);
     const [status, retData] = await this.getBytes(eipHeader);
     if (status == 0) {
       const us = Number(unpackFrom("<Q", retData, true, 56)[0].toString());
-      return raw ? us : new Date(1970, 1, 1).getTime() * 0.001 + us / 1000;
+      return raw
+        ? us
+        : new Date(new Date(1970, 1, 1).getTime() * 0.001 + us / 1000);
     } else {
-      const err = get_error_code(status);
+      const err = getErrorCode(status);
       throw new LogixError(`Failed get PLC time ${err}`, status);
     }
   }
-  async setTime() {
+
+  async setWallClockTime(date: Date = new Date()): Promise<boolean> {
     const AttributePacket = pack(
       "<BBBBBBHHQ",
-      0x04,
-      0x02,
-      0x20,
-      0x8b,
-      0x24,
-      0x01,
-      0x01,
-      0x06,
-      Date.now() * 1000000
+      0x04, //AttributeService
+      0x02, // AttributeSize
+      0x20, // AttributeClassType
+      0x8b, // AttributeClass
+      0x24, // AttributeInstanceType
+      0x01, // AttributeInstance
+      0x01, // AttributeCount
+      0x06, // Attribute
+      date.getTime() * 1000
     );
     const eipHeader = this.buildEIPHeader(AttributePacket);
     const [status, _] = await this.getBytes(eipHeader);
     if (status == 0) {
-      return;
+      return true;
     } else {
-      const err = get_error_code(status);
+      const err = getErrorCode(status);
       throw new LogixError(`Failed set PLC time ${err}`, status);
     }
   }
@@ -1257,7 +1278,9 @@ export default class EIPSocket extends Socket {
    * @returns {Array}
    *
    */
-  async getTagList(allTags = true) {
+  async getTagList(
+    allTags: boolean = true
+  ): Promise<Array<LgxTag> | undefined> {
     if (allTags) {
       await this._getTagList();
       await this._getAllProgramsTags();
@@ -1289,7 +1312,7 @@ export default class EIPSocket extends Socket {
    *    Sanity check: checks if programNames is empty
    *     and runs _getTagList
    */
-  async getProgramsList() {
+  async getProgramsList(): Promise<Array<string> | undefined> {
     if (!this.context.programNames || !this.context.programNames.length)
       await this._getTagList();
     return this.context.programNames;
@@ -1307,9 +1330,8 @@ export default class EIPSocket extends Socket {
 
     if (status === 0 || status === 6) {
       this.extractTagPacket(retData);
-      //console.log(this.context.tagList);
     } else {
-      const err = get_error_code(status);
+      const err = getErrorCode(status);
       throw new LogixError(`Failed to get tag list ${err}`, status);
     }
     while (status == 6) {
@@ -1319,7 +1341,7 @@ export default class EIPSocket extends Socket {
       [status, retData] = await this.getBytes(eipHeader);
       if (status == 0 || status == 6) this.extractTagPacket(retData);
       else {
-        const err = get_error_code(status);
+        const err = getErrorCode(status);
         throw new LogixError(`Failed to get tag list-${err}`, status);
       }
     }
@@ -1339,7 +1361,7 @@ export default class EIPSocket extends Socket {
       if (status == 0 || status == 6)
         this.extractTagPacket(retData, programName);
       else {
-        const err = get_error_code(status);
+        const err = getErrorCode(status);
         throw new LogixError(`Failed to get program tag list ${err}`, status);
       }
 
@@ -1351,7 +1373,7 @@ export default class EIPSocket extends Socket {
         if (status == 0 || status == 6)
           this.extractTagPacket(retData, programName);
         else {
-          const err = get_error_code(status);
+          const err = getErrorCode(status);
           throw new LogixError(`Failed to get program tag list ${err}`, status);
         }
       }
@@ -1371,7 +1393,7 @@ export default class EIPSocket extends Socket {
     const [status, retData] = await this.getBytes(eipHeader);
     if (status == 0 || status == 6) this.extractTagPacket(retData, programName);
     else {
-      const err = get_error_code(status);
+      const err = getErrorCode(status);
       throw new LogixError(`Failed to get program tag list ${err}`, status);
     }
 
@@ -1383,7 +1405,7 @@ export default class EIPSocket extends Socket {
       if (status == 0 || status == 6)
         this.extractTagPacket(retData, programName);
       else {
-        const err = get_error_code(status);
+        const err = getErrorCode(status);
         throw new LogixError(`Failed to get program tag list ${err}`, status);
       }
     }
@@ -1483,7 +1505,7 @@ export default class EIPSocket extends Socket {
   /**
    * @returns {Buffer}
    */
-  readTemplateService(instance: number, dataLen: number) {
+  readTemplateService(instance: number, dataLen: number): Buffer {
     return pack(
       "<BBBBHHIH",
       0x4c,
@@ -1497,6 +1519,18 @@ export default class EIPSocket extends Socket {
     );
   }
   /**
+   *
+   * @description get properties of PLC
+   * @param {LGXDevice} pass response object, current PLC or LGXDevice
+   */
+  getIdentity(resp?: LGXDevice): Bluebird<LGXDevice | undefined> {
+    return Bluebird.try<LGXDevice | undefined>(async () => {
+      const request = EIPSocket.buildListIdentity();
+      const [_, data] = await this.getBytes(request);
+      return _parseIdentityResponse(data, undefined, resp);
+    });
+  }
+  /**
    * @description  Request the properties of a module in a particular
    *      slot
    * @returns {LGXDevice}
@@ -1506,16 +1540,16 @@ export default class EIPSocket extends Socket {
       async (): Promise<LGXDevice> => {
         const AttributePacket = pack(
           "<10B",
-          0x01,
-          0x02,
-          0x20,
-          0x01,
-          0x24,
-          0x01,
-          0x01,
-          0x00,
-          0x01,
-          slot
+          0x01, //AttributeService
+          0x02, // AttributeSize
+          0x20, // AttributeClassType
+          0x01, // AttributeClass
+          0x24, // AttributeInstanceType
+          0x01, //AttributeInstance
+          0x01, //PathRouteSize
+          0x00, // Reserved
+          0x01, // Backplane
+          slot // LinkAddress
         );
 
         const frame = this.buildCIPUnconnectedSend();
@@ -1527,6 +1561,7 @@ export default class EIPSocket extends Socket {
         const pad = pack("<I", 0x00);
         this.send(eipHeader);
         let retData = await this.recv_data();
+
         retData = Buffer.concat([pad, retData], pad.length + retData.length);
         const status = <number>unpackFrom("<B", retData, true, 46)[0];
 
@@ -1564,6 +1599,7 @@ export default class EIPSocket extends Socket {
    */
   send(data: Buffer): Bluebird<boolean> {
     return new Bluebird<boolean>((resolve, reject) => {
+      this.setNoDelay(true);
       this.write(data, error => {
         if (error) reject(error);
         else resolve(true);
@@ -1598,19 +1634,22 @@ export default class EIPSocket extends Socket {
     return Bluebird.try<[number, Buffer]>(
       async (): Promise<[number, Buffer]> => {
         try {
+          this.resume();
           await this.send(data);
           const retData = await this.recv_data();
+          this.pause();
           if (retData) {
             return [<number>unpackFrom("<B", retData, true, 48)[0], retData];
           } else {
             throw [1, undefined];
           }
         } catch (error) {
-          if (!Array.isArray(error)) {
+          throw error;
+          /* if (!Array.isArray(error)) {
             throw new ConnectionLostError();
           } else {
             throw error;
-          }
+          } */
         }
       }
     );
@@ -1671,10 +1710,10 @@ export default class EIPSocket extends Socket {
           });
           super.once("error", () => {
             this.disconnect();
-            //console.log("error");
           });
           this.id = <number>unpackFrom("<I", <Buffer>retData, true, 44)[0];
           this._connected = true;
+          this.pause();
           return this;
         } else {
           this.destroy();
@@ -1687,7 +1726,7 @@ export default class EIPSocket extends Socket {
    * @description Destroy and disconnect EIP socket
    * @returns {Bluebird<void>}
    */
-  disconnect() {
+  disconnect(): Bluebird<void> {
     return Bluebird.try(async () => {
       if (this.disconnected || this._closing) return;
       this._closing = true;
@@ -1712,7 +1751,7 @@ export default class EIPSocket extends Socket {
    * @description Destroy and disconnect EIP socket and destroy from pool
    * @returns {Bluebird<void>}
    */
-  destroy() {
+  destroy(): Bluebird<any> {
     return Bluebird.resolve(async () => {
       await this.disconnect();
       this.context._pool && (await this.context._pool.destroy(this));
@@ -1730,6 +1769,24 @@ export default class EIPSocket extends Socket {
     return Bluebird.try(() => {
       return socket.connect();
     });
+  }
+  /**
+   * @description Build the list identity request for discovering Ethernet I/P
+   *     devices on the network
+   */
+  static buildListIdentity(): Buffer {
+    return pack(
+      "<HHIIHHHHI",
+      0x63, // ListService
+      0x00, // ListLength
+      0x00, // ListSessionHandle
+      0x00, // ListStatus
+      0xfa, // ListResponse
+      0x6948, // ListContext1
+      0x6f4d, // ListContext2
+      0x006d, // ListContext3
+      0x00 // ListOptions
+    );
   }
 }
 
@@ -1771,21 +1828,14 @@ export class LgxTag {
 }
 
 export class Response {
-  public tagName?: string;
-  public value?: any;
-  public status: number;
-  constructor(public tag_name: string | undefined, value: any, status: number) {
-    if (typeof tag_name !== "undefined") this.tagName = tag_name;
-    this.value = value;
-    this.status = get_error_code(status);
+  public message?: string;
+  constructor(
+    public tag_name?: string | undefined,
+    public value?: any,
+    public status?: number
+  ) {
+    if (status) this.message = getErrorCode(status);
   }
-}
-
-//Get the CIP error code string
-export function get_error_code(status: number) {
-  return status in cipErrorCodes
-    ? (cipErrorCodes as any)[status]
-    : "Unknown error " + status;
 }
 
 export { CIPTypes };

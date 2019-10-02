@@ -1,11 +1,12 @@
 {
   "license": "MIT",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "author": "Michael Vargas",
   "scripts": {
     "prettier": "prettier --write src/**/*.js examples/*.js",
     "publish:npm": "npm publish --access public",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "clean": "tsc --build --clean"
   },
   "dependencies": {
     "bluebird": "^3.5.5",

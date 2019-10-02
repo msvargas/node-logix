@@ -1,3 +1,6 @@
 __pycache__
 node_modules
 *.py
+
+**/*.js
+**/*.d.ts

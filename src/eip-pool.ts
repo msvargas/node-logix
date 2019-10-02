@@ -8,10 +8,7 @@ import EIPSocket, {
 export { EIPSocket, CIPTypes };
 
 class EIPSocketPool extends EIPContext {
-  constructor(props: IEIPContextOptions) {
-    super(props);
-    const { pool, ...options } = props;
-
+  constructor({ pool, ...options }: IEIPContextOptions) {
     super(options);
     const opts = Object.assign(
       {
@@ -110,8 +107,8 @@ class EIPSocketPool extends EIPContext {
       ) as Bluebird<EIPSocket>)
         .then(socket => {
           this._pool && socket.connected && this._pool.release(socket);
+          resolve(socket);
         })
-        .then(resolve)
         .catch((err: Error) => {
           if (priority !== "connect") reject(err);
         });

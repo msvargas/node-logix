@@ -1,16 +1,13 @@
 "use strict";
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-var PLC = __importStar(require("./src/eip"));
-//const EIPSocket = require("./src/eip-socket");
-exports.default = PLC;
-/* exports.EIPSocket = EIPSocket;
-module.exports = PLC;
-exports.default = PLC; */
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7QUFBQSw2Q0FBaUM7QUFFakMsZ0RBQWdEO0FBRWhELGtCQUFlLEdBQUcsQ0FBQTtBQUVsQjs7eUJBRXlCIn0=
+var PLC_1 = require("./src/PLC");
+exports.default = PLC_1.default;
+var eip_pool_1 = require("./src/eip-pool");
+exports.EIPSocketPool = eip_pool_1.default;
+var eip_socket_1 = require("./src/eip-socket");
+exports.EIPSocket = eip_socket_1.default;
+var errors_1 = require("./src/errors");
+exports.EIPErrors = errors_1.default;
+var utils_js_1 = require("./src/utils.js");
+exports.EIPUtils = utils_js_1.default;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOztBQUFBLGlDQUFvQztBQUEzQix3QkFBQSxPQUFPLENBQUE7QUFDaEIsMkNBQTBEO0FBQWpELG1DQUFBLE9BQU8sQ0FBaUI7QUFDakMsK0NBQXdEO0FBQS9DLGlDQUFBLE9BQU8sQ0FBYTtBQUM3Qix1Q0FBb0Q7QUFBM0MsNkJBQUEsT0FBTyxDQUFhO0FBQzdCLDJDQUFxRDtBQUE1Qyw4QkFBQSxPQUFPLENBQVkifQ==

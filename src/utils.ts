@@ -1,10 +1,8 @@
 import { RemoteInfo } from "dgram";
 import { unpackFrom, pack } from "python-struct";
-import LGXDevice, { getDevice, getVendor } from "./lgxDevice";
+import LGXDevice, { getDevice, getVendor, ILGXDevice } from "./lgxDevice";
 import { PinMappingError } from "./errors";
-import Promise from "bluebird";
-
-global.Promise = Promise;
+import PLC from "./PLC";
 
 /**
  * @description Get the number of words that the requested
@@ -152,14 +150,19 @@ export const flatten = (arr: Array<any>) =>
  * @param {Buffer|Array} data
  * @returns {LGXDevice}
  */
-export function _parseIdentityResponse(data: Buffer, rinfo?: RemoteInfo) {
-  const resp = new LGXDevice(rinfo);
+export function _parseIdentityResponse(
+  data: Buffer,
+  rinfo?: RemoteInfo,
+  resp?: LGXDevice | PLC
+) {
+  if (!resp) resp = new LGXDevice(rinfo);
   try {
-    resp.length = unpackFrom("<H", data, true, 28)[0] as number;
-    resp.encapsulationVersion = (unpackFrom("<H", data, true, 30) as any)[0];
-
-    const longIP = unpackFrom("<I", data, true, 36)[0] as number;
-    resp.IPAddress = pack("<L", longIP).join(".");
+    if (!(resp instanceof PLC)) {
+      resp.length = unpackFrom("<H", data, true, 28)[0] as number;
+      resp.encapsulationVersion = (unpackFrom("<H", data, true, 30) as any)[0];
+      const longIP = unpackFrom("<I", data, true, 36)[0] as number;
+      resp.IPAddress = pack("<L", longIP).join(".");
+    }
     resp.vendorId = unpackFrom("<H", data, true, 48)[0] as number;
     resp.vendor = getVendor(resp.vendorId);
 
@@ -184,4 +187,4 @@ export function _parseIdentityResponse(data: Buffer, rinfo?: RemoteInfo) {
   }
 }
 
-export { unpackFrom, pack };
+export { unpackFrom, pack, ILGXDevice };

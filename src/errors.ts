@@ -62,6 +62,20 @@ export class PinMappingError extends Error {
     this.name = "PinMappingError";
   }
 }
+
+/* export class ConnectionSizeError extends Error{
+  constructor(connectionSize? : number){
+    super("Max ConnectionSize");
+    this.name = "ConnectionSizeError"
+  }
+} */
+//Get the CIP error code string
+export function getErrorCode(status: number) {
+  return status in cipErrorCodes
+    ? (cipErrorCodes as any)[status]
+    : "Unknown error " + status;
+}
+
 export { cipErrorCodes };
 
 export default {

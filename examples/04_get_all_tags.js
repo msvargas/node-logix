@@ -1,8 +1,11 @@
+"use-strict";
+
 /**
- * The simplest example of writing and reading a tag from a PLC
+ * @description The simplest example of writing and reading a tag from a PLC
  */
 
 const PLC = require("../index").default;
+PLC.defaultOptions.Micro800 = true;
 
 const comm = new PLC("192.168.100.174");
 
@@ -12,7 +15,7 @@ comm
     comm
       .getTagList()
       .then(tags => {
-        console.log("Tags list:", tags.length);
+        console.log("Tags list:", tags);
       })
       .catch(console.error);
   })

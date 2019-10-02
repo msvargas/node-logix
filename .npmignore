@@ -1,3 +1,10 @@
+.git
+__pycache__
 .vscode
 examples
 yarn-error.log
+*.py
+
+**/*.ts
+!**/*.d.ts
+doc

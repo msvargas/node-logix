@@ -6,9 +6,11 @@ Nodejs package to handle PLC as Micro820 of Allen Bradley
 
 - Manager multiple connections to write/read tags using pooling with generic-pool
 
-- Listener events as *connect*, *connect_error*, *disconnect* or *found* (discover function)
+- Listener events as _connect_, _connect_error_, _disconnect_ or _found_ (discover function)
 
-- Ardunio mode: functions as digitalRead, digitalWrite... 
+- Ardunio mode: functions as digitalRead, digitalWrite...
+
+- Add typescript
 
 ## Install package
 
@@ -55,6 +57,7 @@ comm.on("disconnect", reason => {
 ## Example: Discover devices
 
 Find devices using dgram socket
+
 ```js
 const PLC = require("node-logix");
 
@@ -66,30 +69,24 @@ PLC.discover().then(devices => {
 ## Example: Arduino mode
 
 ```js
+comm
+  .digitalRead(0)
+  .then(result => {
+    console.timeEnd("reading digital");
+    console.log("value of:", result.valueOf(), "tagName:", result.tagName);
+  })
+  .catch(console.error);
+[0, 1, 2, 3, 4, 5, 6].forEach(p => {
   comm
-    .digitalRead(0)
-    .then(result => {
-      console.timeEnd("reading digital");
-      console.log(
-        "value of:",
-        result.valueOf(),
-        "tagName:",
-        result.tagName
-      );
-    })
-    .catch(console.error);
-  [0, 1, 2, 3, 4, 5, 6].forEach(p => {
-    comm
-      .digitalWrite(p, false)
-      .then(console.log)
-      .catch(e => console.error("error write", e));
-  });
-
+    .digitalWrite(p, false)
+    .then(console.log)
+    .catch(e => console.error("error write", e));
+});
 ```
 
 ## Default Options
 
-**NOTE:** Micro800 option default: *true*:
+**NOTE:** Micro800 option default: _true_:
 
 ```js
 PLC.defaultOptions = {
@@ -101,7 +98,7 @@ PLC.defaultOptions = {
   pool: { // options generic-pool
     min: 0,
     max: 3,
-    Promise, //bluebird
+    Promise : Bluebird, //bluebird
     priorityRange: 2,
     fifo: false,
     testOnBorrow: true,
@@ -122,18 +119,19 @@ This project is licensed under the MIT License - see the [LICENCE](https://githu
 
 - For Micro800 of CIP Service if limited, no working getProgramList, getModuleProperties(0)..., only get global tag names
 
-- ArduinoMode only working with Micro800 enable, to working with other PLC, yout must be create custom pinMapping JSON and replacePin function: 
+- ArduinoMode only working with Micro800 enable, to working with other PLC, yout must be create custom pinMapping JSON and replacePin function:
+
 ```js
-comm.pinMapping =  {
-    "digital" : {
-        "output": "_IO_EM_DO_{dd}",
-        "input": "_IO_EM_DI_{dd}"
-    },
-    "analog" : {
-        "input" : "_IO_EM_AI_{dd}",
-        "output" : "_IO_EM_AO_{dd}"
-    }
+comm.pinMapping = {
+  digital: {
+    output: "_IO_EM_DO_{dd}",
+    input: "_IO_EM_DI_{dd}"
+  },
+  analog: {
+    input: "_IO_EM_AI_{dd}",
+    output: "_IO_EM_AO_{dd}"
   }
+};
 /**
  * @description replace pin mapping
  * @param {String} str
@@ -154,5 +152,19 @@ function _replacePin(str = "", pin) {
   return str;
 }
 ```
-# Issues
-- For write array, only write 256 positions
+## More Examples
+ https://github.com/dmroeder/pylogix/tree/master/pylogix/examples
+
+
+# NOTE:
+
+**Connection size:**
+
+- Packets have a ~500 byte limit, so you have to be cautions
+  about not exceeding that or the read will fail.  It's a little
+  difficult to predict how many bytes your reads will take up becuase
+  the send packet will depend on the length of the tag name and the
+  reply will depened on the data type.  Strings are a lot longer than
+  DINT's for example.
+
+- Micro800 has CIP protocol Limited, check examples to check work functions

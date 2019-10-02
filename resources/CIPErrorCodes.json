@@ -18,7 +18,7 @@
   "16": "Device state conflict",
   "17": "Reply data too large",
   "18": "Fragmentation of a premitive value",
-  "19": "Not enough data",
+  "19": "Not enough data received",
   "20": "Attribute not supported",
   "21": "Too much data",
   "22": "Object does not exist",

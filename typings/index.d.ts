@@ -1,5 +1,6 @@
 import { DataType } from "python-struct";
-import { Socket as SocketDgram} from "dgram"
+import { Socket as SocketDgram, RemoteInfo} from "dgram"
+import LGXDevice from "../src/lgxDevice";
 
 declare module "python-struct" {
   export function unpackFrom(
@@ -9,3 +10,4 @@ declare module "python-struct" {
     position: number
   ): Array<DataType>;
 }
+
