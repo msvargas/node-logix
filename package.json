@@ -1,6 +1,6 @@
 {
   "license": "MIT",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "author": "Michael Vargas",
   "scripts": {
     "prettier": "prettier --write src/**/*.js examples/*.js src/**/*.ts",
@@ -35,7 +35,9 @@
     "Micro800",
     "Micro820",
     "Micro850",
-    "Logix PLC"
+    "Logix PLC",
+    "CIP Protocol",
+    "pylogix"
   ],
   "readme": "README.md"
 }
