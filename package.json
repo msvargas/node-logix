@@ -3,7 +3,7 @@
   "version": "1.0.11",
   "author": "Michael Vargas",
   "scripts": {
-    "prettier": "prettier --write src/**/*.js examples/*.js",
+    "prettier": "prettier --write src/**/*.js examples/*.js src/**/*.ts",
     "publish:npm": "npm publish --access public",
     "tsc": "tsc",
     "clean": "tsc --build --clean"

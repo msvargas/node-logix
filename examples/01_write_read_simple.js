@@ -5,7 +5,8 @@
  */
 /**
  * more @examples : https://github.com/dmroeder/pylogix/tree/master/pylogix/examples
- */ 
+ */
+
 const PLC = require("../index").default;
 PLC.defaultOptions.Micro800 = true;
 const comm = new PLC("192.168.100.174");

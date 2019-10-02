@@ -63,8 +63,8 @@ export class Pin {
 type IPAddress = string;
 
 export interface IOptions {
-  id?: string;
   arduinoMode?: boolean;
+  autoClose?: boolean;
 }
 
 export interface IPingMappings {
@@ -88,8 +88,23 @@ export interface ICustomSocket {
   idTimeout?: NodeJS.Timeout;
 }
 
-export interface IDeviceProps extends ILGXDevice {
-  arduinoMode?: boolean;
+export interface IDeviceProps extends ILGXDevice, IOptions {}
+
+export enum CIPTypesValues {
+  STRUCT = 160,
+  BOOL = 193,
+  SINT = 194,
+  INT = 195,
+  DINT = 196,
+  LINT = 197,
+  USINT = 198,
+  UINT = 199,
+  UDINT = 200,
+  LWORD = 201,
+  REAL = 202,
+  LREAL = 203,
+  DWORD = 211,
+  STRING = 218
 }
 
 declare interface PLC {
@@ -133,6 +148,7 @@ class PLC extends EIPSocketPool implements IDeviceProps {
   serialNumber?: string | number;
   productName?: string;
   state?: number;
+  autoClose?: boolean = true;
 
   protected _closing: boolean = false;
   protected _pingMapping?: IPingMappings;
@@ -152,13 +168,7 @@ class PLC extends EIPSocketPool implements IDeviceProps {
   /**
    * @description get CIPTypes number foreach avaible dataType
    */
-  public static CIPTypes = Object.keys(CIPTypes)
-    .map(key => ({ [(CIPTypes as any)[key][1]]: key }))
-    .reduce(function(result: any, item) {
-      const key = Object.keys(item)[0];
-      result[key] = parseInt(item[key as any]);
-      return result;
-    }, {});
+  public static CIPTypes = CIPTypesValues;
 
   public static defaultOptions = {
     allowHalfOpen: true,
@@ -183,17 +193,26 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {IEIPContextOptions} options Options to set if IPAddress typeof string
    */
   constructor(
-    host: IPAddress | IEIPContextOptions,
+    host: IPAddress | (IEIPContextOptions & IOptions),
     options: IEIPContextOptions & IOptions
   ) {
     super(
       typeof host === "string"
         ? Object.assign(PLC.defaultOptions, options, { host })
-        : Object.assign(PLC.defaultOptions, options)
+        : Object.assign(PLC.defaultOptions, options, host)
     );
+    try {
+      if (typeof host === "object" && "autoClose" in host) {
+        this.autoClose = host.autoClose;
+        this.arduinoMode = host.arduinoMode;
+      } else if (typeof options === "object") {
+        this.autoClose = options.autoClose;
+        this.arduinoMode = options.arduinoMode;
+      }
+    } catch {}
     if (typeof host === "string" && !host.length)
       throw new Error("Check empty IPAddress");
-    else if (!isIP(host as string))
+    else if (typeof host === "string" && !isIP(host))
       throw new Error("IP Address no valid, check IP: " + host);
 
     if (this.Micro800 && this.arduinoMode) {
@@ -207,6 +226,14 @@ class PLC extends EIPSocketPool implements IDeviceProps {
           this.emit("disconnect", err);
         }
       });
+    }
+    if (!!this.autoClose) {
+      const onExit = () => {
+        this.close();
+      };
+      process.once("SIGINT", onExit); // Ctrl + C
+      process.once("SIGKILL", onExit); // kill process
+      process.once("beforeExit", onExit); // on process.exit
     }
   }
   /**
@@ -391,7 +418,9 @@ class PLC extends EIPSocketPool implements IDeviceProps {
   digitalWrite(
     pin: number,
     value: boolean | number,
-    options: ITagWriteOptions
+    options: ITagWriteOptions = {
+      dataType: CIPTypesValues.BOOL
+    }
   ) {
     return Bluebird.try(() => {
       this._checkPin(pin, value);
@@ -403,7 +432,7 @@ class PLC extends EIPSocketPool implements IDeviceProps {
         ).then(tag => {
           return tag
             ? this.write(tag, Number(value), options).then(
-                value => new Pin(tag, value)
+                _ => new Pin(tag, value)
               )
             : undefined;
         });
@@ -413,7 +442,10 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @description read digital output using pin mapping
    * @param {Number} pin
    */
-  digitalOutRead(pin: number, options: ITagReadOptions) {
+  digitalOutRead(
+    pin: number,
+    options: ITagReadOptions = { dataType: CIPTypesValues.BOOL }
+  ) {
     return Bluebird.try(() => {
       this._checkPin(pin);
       return (
@@ -433,7 +465,10 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @description read digital input using pin mapping
    * @param {Number} pin
    */
-  digitalRead(pin: number, options: ITagReadOptions) {
+  digitalRead(
+    pin: number,
+    options: ITagReadOptions = { dataType: CIPTypesValues.BOOL }
+  ) {
     return Bluebird.try(() => {
       this._checkPin(pin);
       return (
@@ -454,7 +489,11 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {Number} pin
    * @param {Number} value
    */
-  analogWrite(pin: number, value: number, options: ITagWriteOptions) {
+  analogWrite(
+    pin: number,
+    value: number,
+    options: ITagWriteOptions = { dataType: CIPTypesValues.UINT }
+  ) {
     return Bluebird.try(() => {
       this._checkPin(pin, value);
       return (
@@ -466,7 +505,7 @@ class PLC extends EIPSocketPool implements IDeviceProps {
           return !tag
             ? undefined
             : this.write(tag, Number(value), options).then(
-                value => new Pin(tag, value)
+                _ => new Pin(tag, value)
               );
         })
       );
@@ -476,7 +515,10 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @description read analog output pin using pin mapping
    * @param {Number} pin
    */
-  analogOutRead(pin: number, options: ITagReadOptions) {
+  analogOutRead(
+    pin: number,
+    options: ITagReadOptions = { dataType: CIPTypesValues.UINT }
+  ) {
     return Bluebird.try(() => {
       this._checkPin(pin);
       return (
@@ -496,7 +538,10 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @description read analog input pin using pin mapping
    * @param {Number} pin
    */
-  analogRead(pin: number, options: ITagReadOptions) {
+  analogRead(
+    pin: number,
+    options: ITagReadOptions = { dataType: CIPTypesValues.UINT }
+  ) {
     return Bluebird.try(() => {
       this._checkPin(pin);
       return (

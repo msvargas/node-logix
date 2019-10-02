@@ -2,8 +2,8 @@ import { RemoteInfo } from "dgram";
 import devices from "../resources/devices.json";
 import vendors from "../resources/vendors.json";
 
-export interface ILGXDevice{
-    /**
+export interface ILGXDevice {
+  /**
    * @description Vendor Identification
    */
   vendorId?: number | string;
@@ -60,7 +60,7 @@ export default class LGXDevice implements ILGXDevice {
   serialNumber?: string | number;
   productName?: string;
   state?: number;
-  
+
   constructor(rinfo?: RemoteInfo) {
     if (!!rinfo) this.address = () => rinfo;
   }

@@ -53,7 +53,15 @@ comm
         );
       })
       .catch(console.error);
-    [0, 1, 2, 3, 4, 5, 6].forEach(p => {
+    comm
+      .analogWrite(0, 127)
+      .then(res => {
+        console.log(comm.knownTags);
+        console.log(res);
+      })
+      .catch(console.error);
+    const pins = [0, 1, 2, 3, 4, 5, 6];
+    pins.forEach(p => {
       comm.digitalWrite(p, p % 2).catch(e => console.error("Error write:", e));
     });
   })

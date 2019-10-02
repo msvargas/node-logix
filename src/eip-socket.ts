@@ -1416,7 +1416,7 @@ export default class EIPSocket extends Socket {
   private async _getUDT() {
     if (!this.context.tagList) return;
     //get only tags that are a struct
-    const struct_tags = this.context.tagList.filter(x => x.struct === 1);
+    const struct_tags = this.context.tagList.filter(x => x.struct);
     // reduce our struct tag list to only unique instances
     const seen = new Set();
     const unique = struct_tags.filter(obj => {
@@ -1802,15 +1802,12 @@ function parseLgxTag(packet: Buffer, programName?: string) {
   if (programName) t.tagName = String(programName + "." + name);
   else t.tagName = String(name);
   t.instanceId = unpackFrom("<H", packet, true, 0)[0] as number;
-
   const val = unpackFrom("<H", packet, true, length + 6)[0] as number;
-
   t.symbolType = val & 0xff;
   t.dataTypeValue = val & 0xfff;
-  t.array = (val & 0x6000) >> 13;
-  t.struct = (val & 0x8000) >> 15;
-
-  if (t.array) t.size = unpackFrom("<H", packet, true, length + 8)[0] as number;
+  t.array = Boolean((val & 0x6000) >> 13);
+  t.struct = Boolean((val & 0x8000) >> 15);
+  if (t.array) t.size = <number>unpackFrom("<H", packet, true, length + 8)[0];
   else t.size = 0;
   return t;
 }
@@ -1821,8 +1818,8 @@ export class LgxTag {
   symbolType: number = 0x00;
   dataTypeValue: number = 0x00;
   dataType: string = "";
-  array: number = 0x00;
-  struct: number = 0x00;
+  array: boolean = false;
+  struct: boolean = false;
   size: number = 0x00;
   constructor() {}
 }

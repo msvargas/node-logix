@@ -1,10 +1,11 @@
 .git
 __pycache__
 .vscode
+examples/*
 examples
 yarn-error.log
 *.py
-
 **/*.ts
 !**/*.d.ts
-doc
+manuals
+*.workspace
