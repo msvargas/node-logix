@@ -2,6 +2,8 @@
 
 Nodejs package to handle PLC as Micro820 of Allen Bradley
 
+# Features
+
 - Promise response with bluebird
 
 - Manager multiple connections to write/read tags using pooling with generic-pool
@@ -90,6 +92,9 @@ comm
 });
 ```
 
+**More examples:** 
+https://github.com/punisher97/node-logix/tree/master/examples
+
 ## Default Options
 
 ```js
@@ -161,6 +166,8 @@ function _replacePin(str = "", pin) {
   DINT's for example.
 
 - Micro800 has CIP protocol Limited, check examples to check work functions
+
+* **[API Documentation](https://punisher97.github.io/node-logix/docs/globals.html)**
 
 ## Inpired by projects
 
