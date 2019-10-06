@@ -1459,15 +1459,13 @@ export default class EIPSocket extends Socket {
    * @description Get the attributes of a UDT
    * @param {Number} instance
    */
-  async getTemplateAttribute(instance: number): Bluebird<Buffer> {
-    return Bluebird.try<Buffer>(
-      async (): Promise<Buffer> => {
-        const readRequest = this.buildTemplateAttributes(instance);
-        const eipHeader = this.buildEIPHeader(readRequest);
-        const [_, retData] = await this.getBytes(eipHeader);
-        return retData;
-      }
-    );
+  getTemplateAttribute(instance: number): Bluebird<Buffer> {
+    return Bluebird.try(async () : Promise<Buffer> => {
+      const readRequest = this.buildTemplateAttributes(instance);
+      const eipHeader = this.buildEIPHeader(readRequest);
+      const [_, retData] = await this.getBytes(eipHeader);
+      return retData;
+    });
   }
   /**
    * @description  Get the members of a UDT so we can get it
@@ -1475,7 +1473,7 @@ export default class EIPSocket extends Socket {
    * @param {Number} dataLen
    * @returns {Bluebird<Buffer>}
    */
-  async getTemplate(instance: number, dataLen: number): Bluebird<Buffer> {
+  async getTemplate(instance: number, dataLen: number): Promise<Buffer> {
     const readRequest = this.readTemplateService(instance, dataLen);
     const eipHeader = this.buildEIPHeader(readRequest);
     const [_, retData] = await this.getBytes(eipHeader);

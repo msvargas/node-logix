@@ -14,7 +14,7 @@
     "tsc-es6": "tsc --p tsconfig.es6.json",
     "tsc": "tsc",
     "clean": "RMDIR /Q/S build",
-    "docs": "typedoc --out docs ./src"
+    "docs": "typedoc --out docs ./src --mode file --includeDeclarations --excludeExternals --module commonjs --target ES6 --tsconfig tsconfig.es6.json"
   },
   "dependencies": {
     "bluebird": "^3.5.5",
