@@ -8,7 +8,7 @@ Nodejs package to handle PLC as Micro820 of Allen Bradley
 
 - Manager multiple connections to write/read tags using pooling with generic-pool
 
-- Listener events as _connect_, _connect_error_, _disconnect_, _closing_, or _found_, __found_error_ (discover function)
+- Listener events as _connect_, _connect_error_, _disconnect_, _closing_, or _found_, \__found_error_ (discover function)
 
 - Ardunio mode: functions as digitalRead, digitalWrite...
 
@@ -19,6 +19,8 @@ Nodejs package to handle PLC as Micro820 of Allen Bradley
 - Support to write and read string and array
 
 - Support typescript
+
+- [API Documentation](http://punisher97.github.io/node-logix/)
 
 ## Install package
 
@@ -92,7 +94,7 @@ comm
 });
 ```
 
-**More examples:** 
+**More examples:**
 https://github.com/punisher97/node-logix/tree/master/examples
 
 ## Default Options
@@ -148,26 +150,24 @@ function _replacePin(str = "", pin) {
   }
   return str;
 }
-
 ```
-## More Examples
- https://github.com/dmroeder/pylogix/tree/master/pylogix/examples
 
+## More Examples
+
+https://github.com/dmroeder/pylogix/tree/master/pylogix/examples
 
 # NOTE:
 
 **Connection size:**
 
 - Packets have a ~500 byte limit, so you have to be cautions
-  about not exceeding that or the read will fail.  It's a little
+  about not exceeding that or the read will fail. It's a little
   difficult to predict how many bytes your reads will take up becuase
   the send packet will depend on the length of the tag name and the
-  reply will depened on the data type.  Strings are a lot longer than
+  reply will depened on the data type. Strings are a lot longer than
   DINT's for example.
 
 - Micro800 has CIP protocol Limited, check examples to check work functions
-
-* **[API Documentation](https://punisher97.github.io/node-logix/docs/globals.html)**
 
 ## Inpired by projects
 
