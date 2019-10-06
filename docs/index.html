@@ -63,23 +63,30 @@
 				<a href="#node-logix" id="node-logix" style="color: inherit; text-decoration: none;">
 					<h1>node-logix</h1>
 				</a>
-				<p>Nodejs package to handle PLC as Micro820 of Allen Bradley</p>
+				<p>Nodejs package to handle PLC as Micro800 of Allen Bradley or Logix</p>
+				<a href="#features" id="features" style="color: inherit; text-decoration: none;">
+					<h1>Features</h1>
+				</a>
 				<ul>
 					<li><p>Promise response with bluebird</p>
 					</li>
 					<li><p>Manager multiple connections to write/read tags using pooling with generic-pool</p>
 					</li>
-					<li><p>Listener events as <em>connect</em>, <em>connect_error</em>, <em>disconnect</em>, <em>closing</em>, or <em>found</em>, <em>_found_error</em> (discover function)</p>
+					<li><p>Listener events as <em>connect</em>, <em>connect_error</em>, <em>disconnect</em>, <em>closing</em>, or <em>found</em>, <em>found_error</em> (discover function)</p>
 					</li>
-					<li><p>Ardunio mode: functions as digitalRead, digitalWrite...</p>
+					<li><p>Ardunio mode: functions as digitalRead, digitalWrite, analogWrite, analogRead, digitalOutRead and analogOutRead</p>
 					</li>
-					<li><p>Autoclose session with PLC</p>
+					<li><p>Autoclose EIP Socket session</p>
 					</li>
 					<li><p>Enable or disable identity on connect (ignoreIdentity param in connect function)</p>
 					</li>
-					<li><p>Support to write and read string and array</p>
+					<li><p>Support to write and read string or array</p>
 					</li>
 					<li><p>Support typescript</p>
+					</li>
+					<li><p>Support Micro800</p>
+					</li>
+					<li><p><a href="http://punisher97.github.io/node-logix/">API Documentation</a></p>
 					</li>
 				</ul>
 				<a href="#install-package" id="install-package" style="color: inherit; text-decoration: none;">
@@ -192,22 +199,22 @@ PLC.discover().then(<span class="hljs-function"><span class="hljs-params">device
     <span class="hljs-keyword">return</span> str.replace(match[<span class="hljs-number">0</span>], <span class="hljs-built_in">String</span>(pin).padStart(match[<span class="hljs-number">1</span>].length, <span class="hljs-string">"0"</span>));
   }
   <span class="hljs-keyword">return</span> str;
-}
-</code></pre>
+}</code></pre>
 				<a href="#more-examples" id="more-examples" style="color: inherit; text-decoration: none;">
 					<h2>More Examples</h2>
 				</a>
-				<p> <a href="https://github.com/dmroeder/pylogix/tree/master/pylogix/examples">https://github.com/dmroeder/pylogix/tree/master/pylogix/examples</a></p>
+				<p><a href="https://github.com/punisher97/node-logix/tree/master/examples">NodeJS</a>:</p>
+				<p><a href="https://github.com/dmroeder/pylogix/tree/master/pylogix/examples">Python</a></p>
 				<a href="#note" id="note" style="color: inherit; text-decoration: none;">
 					<h1>NOTE:</h1>
 				</a>
 				<p><strong>Connection size:</strong></p>
 				<ul>
 					<li><p>Packets have a ~500 byte limit, so you have to be cautions
-							about not exceeding that or the read will fail.  It&#39;s a little
+							about not exceeding that or the read will fail. It&#39;s a little
 							difficult to predict how many bytes your reads will take up becuase
 							the send packet will depend on the length of the tag name and the
-							reply will depened on the data type.  Strings are a lot longer than
+							reply will depened on the data type. Strings are a lot longer than
 						DINT&#39;s for example.</p>
 					</li>
 					<li><p>Micro800 has CIP protocol Limited, check examples to check work functions</p>

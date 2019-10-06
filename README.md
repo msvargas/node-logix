@@ -1,6 +1,6 @@
 # node-logix
 
-Nodejs package to handle PLC as Micro820 of Allen Bradley
+Nodejs package to handle PLC as Micro800 of Allen Bradley or Logix
 
 # Features
 
@@ -8,17 +8,19 @@ Nodejs package to handle PLC as Micro820 of Allen Bradley
 
 - Manager multiple connections to write/read tags using pooling with generic-pool
 
-- Listener events as _connect_, _connect_error_, _disconnect_, _closing_, or _found_, \__found_error_ (discover function)
+- Listener events as _connect_, _connect_error_, _disconnect_, _closing_, or _found_, _found_error_ (discover function)
 
-- Ardunio mode: functions as digitalRead, digitalWrite...
+- Ardunio mode: functions as digitalRead, digitalWrite, analogWrite, analogRead, digitalOutRead and analogOutRead
 
-- Autoclose session with PLC
+- Autoclose EIP Socket session
 
 - Enable or disable identity on connect (ignoreIdentity param in connect function)
 
-- Support to write and read string and array
+- Support to write and read string or array
 
 - Support typescript
+
+- Support Micro800
 
 - [API Documentation](http://punisher97.github.io/node-logix/)
 
@@ -94,9 +96,6 @@ comm
 });
 ```
 
-**More examples:**
-https://github.com/punisher97/node-logix/tree/master/examples
-
 ## Default Options
 
 ```js
@@ -154,7 +153,9 @@ function _replacePin(str = "", pin) {
 
 ## More Examples
 
-https://github.com/dmroeder/pylogix/tree/master/pylogix/examples
+[NodeJS](https://github.com/punisher97/node-logix/tree/master/examples):
+
+[Python](https://github.com/dmroeder/pylogix/tree/master/pylogix/examples)
 
 # NOTE:
 
