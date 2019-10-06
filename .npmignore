@@ -14,3 +14,5 @@ test
 test/*
 tsconfig.json
 *.code-workspace
+docs
+docs/*
