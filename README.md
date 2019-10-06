@@ -153,9 +153,9 @@ function _replacePin(str = "", pin) {
 
 ## More Examples
 
-[NodeJS](https://github.com/punisher97/node-logix/tree/master/examples):
+- Own: [NodeJS](https://github.com/punisher97/node-logix/tree/master/examples)
 
-[Python](https://github.com/dmroeder/pylogix/tree/master/pylogix/examples)
+- Third-party: [Python](https://github.com/dmroeder/pylogix/tree/master/pylogix/examples)
 
 # NOTE:
 

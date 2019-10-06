@@ -38,6 +38,10 @@
 							</div>
 							<input type="checkbox" id="tsd-filter-inherited" checked />
 							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+							<input type="checkbox" id="tsd-filter-only-exported" />
+							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
 						</div>
 					</div>
 					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
@@ -238,130 +242,55 @@ PLC.discover().then(<span class="hljs-function"><span class="hljs-params">device
 					<li class="globals  ">
 						<a href="globals.html"><em>Globals</em></a>
 					</li>
+					<li class="label tsd-is-external">
+						<span>Internals</span>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_plc_.html">"src/PLC"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_eip_pool_.html">"src/eip-<wbr>pool"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_eip_socket_.html">"src/eip-<wbr>socket"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_errors_.html">"src/errors"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_index_.html">"src/index"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_lgxdevice_.html">"src/lgx<wbr>Device"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_utils_.html">"src/utils"</a>
+					</li>
+					<li class="label tsd-is-external">
+						<span>Externals</span>
+					</li>
+					<li class=" tsd-kind-external-module tsd-is-external">
+						<a href="modules/_resources_cipcontext_.html">"resources/CIPContext"</a>
+					</li>
+					<li class=" tsd-kind-external-module tsd-is-external">
+						<a href="modules/_resources_ciperrorcodes_.html">"resources/CIPError<wbr>Codes"</a>
+					</li>
+					<li class=" tsd-kind-external-module tsd-is-external">
+						<a href="modules/_resources_ciptypes_.html">"resources/CIPTypes"</a>
+					</li>
+					<li class=" tsd-kind-external-module tsd-is-external">
+						<a href="modules/_resources_devices_.html">"resources/devices"</a>
+					</li>
+					<li class=" tsd-kind-external-module tsd-is-external">
+						<a href="modules/_resources_pin_mapping_.html">"resources/pin-<wbr>mapping"</a>
+					</li>
+					<li class=" tsd-kind-external-module tsd-is-external">
+						<a href="modules/_resources_vendors_.html">"resources/vendors"</a>
+					</li>
 				</ul>
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-enum">
-						<a href="enums/ciptypesvalues.html" class="tsd-kind-icon">CIPTypes<wbr>Values</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/connectionerror.html" class="tsd-kind-icon">Connection<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/connectionlosterror.html" class="tsd-kind-icon">Connection<wbr>Lost<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/connectiontimeouterror.html" class="tsd-kind-icon">Connection<wbr>Timeout<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/disconnectederror.html" class="tsd-kind-icon">Disconnected<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/eipcontext.html" class="tsd-kind-icon">EIPContext</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/eipsocket.html" class="tsd-kind-icon">EIPSocket</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/forwaropenerror.html" class="tsd-kind-icon">Forwar<wbr>Open<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/lgxdevice.html" class="tsd-kind-icon">LGXDevice</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/lgxresponse.html" class="tsd-kind-icon">Lgx<wbr>Response</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/lgxtag.html" class="tsd-kind-icon">Lgx<wbr>Tag</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/logixerror.html" class="tsd-kind-icon">Logix<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/pin.html" class="tsd-kind-icon">Pin</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/pinmappingerror.html" class="tsd-kind-icon">Pin<wbr>Mapping<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/registersessionerror.html" class="tsd-kind-icon">Register<wbr>Session<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/valueerror.html" class="tsd-kind-icon">Value<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/iciptypes.html" class="tsd-kind-icon">ICIPTypes</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/icustomsocket.html" class="tsd-kind-icon">ICustom<wbr>Socket</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/ideviceprops.html" class="tsd-kind-icon">IDevice<wbr>Props</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/idiscoveroptions.html" class="tsd-kind-icon">IDiscover<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/ieipcontextoptions.html" class="tsd-kind-icon">IEIPContext<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/iknowntags.html" class="tsd-kind-icon">IKnown<wbr>Tags</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/ilgxdevice.html" class="tsd-kind-icon">ILGXDevice</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/ioptions.html" class="tsd-kind-icon">IOptions</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/ipingmappings.html" class="tsd-kind-icon">IPing<wbr>Mappings</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/itagreadoptions.html" class="tsd-kind-icon">ITag<wbr>Read<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/itagwriteoptions.html" class="tsd-kind-icon">ITag<wbr>Write<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#ciptype" class="tsd-kind-icon">CIPType</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#bitvalue" class="tsd-kind-icon">Bit<wbr>Value</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#bitofword" class="tsd-kind-icon">Bitof<wbr>Word</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#_replacepin" class="tsd-kind-icon">_replace<wbr>Pin</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#flatten" class="tsd-kind-icon">flatten</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#getbitofword" class="tsd-kind-icon">get<wbr>Bit<wbr>OfWord</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#getdevice" class="tsd-kind-icon">get<wbr>Device</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#geterrorcode" class="tsd-kind-icon">get<wbr>Error<wbr>Code</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#getvendor" class="tsd-kind-icon">get<wbr>Vendor</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#getwordcount" class="tsd-kind-icon">get<wbr>Word<wbr>Count</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#namefunction" class="tsd-kind-icon">name<wbr>Function</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#parseidentityresponse" class="tsd-kind-icon">parse<wbr>Identity<wbr>Response</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#parsetagname" class="tsd-kind-icon">parse<wbr>Tag<wbr>Name</a>
-					</li>
 				</ul>
 			</nav>
 		</div>
