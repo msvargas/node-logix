@@ -1,8 +1,17 @@
 import { RemoteInfo } from "dgram";
-import { unpackFrom, pack } from "python-struct";
+import { unpackFrom, pack, DataType } from "python-struct";
 import LGXDevice, { getDevice, getVendor, ILGXDevice } from "./lgxDevice";
 import { PinMappingError } from "./errors";
 import PLC from "./PLC";
+
+declare module "python-struct" {
+  export function unpackFrom(
+    format: string,
+    data: Buffer,
+    checkBounds: boolean | undefined,
+    position: number
+  ): Array<DataType>;
+}
 
 /**
  * @description Get the number of words that the requested
@@ -14,7 +23,7 @@ import PLC from "./PLC";
  * @param {Number} bits 
  * @returns {Number}
  */
-export function _getWordCount(start: number, length: number, bits: number) {
+export function getWordCount(start: number, length: number, bits: number) {
   const newStart = start % bits;
   const newEnd = newStart + length;
   const totalWords = (newEnd - 1) / bits;
@@ -28,7 +37,7 @@ export function _getWordCount(start: number, length: number, bits: number) {
  * @param {Number} offset
  * @returns {Array}
  */
-export function _parseTagName(
+export function parseTagName(
   tag: string,
   offset: number
 ): [string, string, Array<number> | number] {
@@ -81,7 +90,7 @@ export function BitValue(value: number, bitno: number) {
  * @param {Number} value
  * @returns {Boolean}
  */
-export function _getBitOfWord(tag: string, value: number) {
+export function getBitOfWord(tag: string, value: number) {
   const split_tag = tag.split("."),
     stripped = split_tag[split_tag.length - 1];
   let returnValue;
@@ -150,7 +159,7 @@ export const flatten = (arr: Array<any>) =>
  * @param {Buffer|Array} data
  * @returns {LGXDevice}
  */
-export function _parseIdentityResponse(
+export function parseIdentityResponse(
   data: Buffer,
   rinfo?: RemoteInfo,
   resp?: LGXDevice | PLC

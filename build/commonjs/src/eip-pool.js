@@ -75,7 +75,7 @@ var bluebird_1 = __importDefault(require("bluebird"));
 var eip_socket_1 = __importStar(require("./eip-socket"));
 exports.EIPSocket = eip_socket_1.default;
 exports.CIPTypes = eip_socket_1.CIPTypes;
-var EIPSocketPool = /** @class */ (function (_super) {
+var EIPSocketPool = (function (_super) {
     __extends(EIPSocketPool, _super);
     function EIPSocketPool(_a) {
         var pool = _a.pool, options = __rest(_a, ["pool"]);
@@ -90,30 +90,22 @@ var EIPSocketPool = /** @class */ (function (_super) {
             destroy: function (socket) { return __awaiter(_this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
                     switch (_a.label) {
-                        case 0: return [4 /*yield*/, socket.destroy()];
+                        case 0: return [4, socket.destroy()];
                         case 1:
                             _a.sent();
-                            return [2 /*return*/];
+                            return [2];
                     }
                 });
             }); },
             validate: function (socket) { return __awaiter(_this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
-                    return [2 /*return*/, socket.connected];
+                    return [2, socket.connected];
                 });
             }); }
         }, opts);
         return _this;
-        /* this._pool.on("factoryDestroyError", err => {
-          console.log("error al destruir", err);
-          this.emit("error", err);
-        }); */
     }
     Object.defineProperty(EIPSocketPool.prototype, "size", {
-        /**
-         * @description  returns number of connections in the pool regardless of whether they are free or in use
-         * @property
-         */
         get: function () {
             return this._pool ? this._pool.size : 0;
         },
@@ -121,10 +113,6 @@ var EIPSocketPool = /** @class */ (function (_super) {
         configurable: true
     });
     Object.defineProperty(EIPSocketPool.prototype, "max", {
-        /**
-         * @description returns number of maxixmum number of connections allowed by pool
-         * @property
-         */
         get: function () {
             return this._pool ? this._pool.max : 0;
         },
@@ -132,10 +120,6 @@ var EIPSocketPool = /** @class */ (function (_super) {
         configurable: true
     });
     Object.defineProperty(EIPSocketPool.prototype, "min", {
-        /**
-         * @description returns number of minimum number of connections allowed by pool
-         * @property
-         */
         get: function () {
             return this._pool ? this._pool.min : 0;
         },
@@ -143,10 +127,6 @@ var EIPSocketPool = /** @class */ (function (_super) {
         configurable: true
     });
     Object.defineProperty(EIPSocketPool.prototype, "pending", {
-        /**
-         * @description returns number of callers waiting to acquire a connection
-         * @property
-         */
         get: function () {
             return this._pool ? this._pool.pending : 0;
         },
@@ -154,10 +134,6 @@ var EIPSocketPool = /** @class */ (function (_super) {
         configurable: true
     });
     Object.defineProperty(EIPSocketPool.prototype, "borrowed", {
-        /**
-         * @description  Number of connections that are currently acquired by userland code
-         * @property
-         */
         get: function () {
             return this._pool ? this._pool.borrowed : 0;
         },
@@ -165,10 +141,6 @@ var EIPSocketPool = /** @class */ (function (_super) {
         configurable: true
     });
     Object.defineProperty(EIPSocketPool.prototype, "available", {
-        /**
-         * @description  returns number of unused connections in the pool
-         * @property
-         */
         get: function () {
             return this._pool ? this._pool.available : 0;
         },
@@ -176,22 +148,12 @@ var EIPSocketPool = /** @class */ (function (_super) {
         configurable: true
     });
     Object.defineProperty(EIPSocketPool.prototype, "spareResourceCapacity", {
-        /**
-         * @description How many many more resources can the pool manage/create
-         * @property
-         */
         get: function () {
             return this._pool ? this._pool.spareResourceCapacity : 0;
         },
         enumerable: true,
         configurable: true
     });
-    /**
-     * @override
-     * @description This function is for when you want to "borrow" a connection from the pool
-     * @param {Number|Function} priority if a Number return only socket if a function release socket on resolve o destroy on reject
-     * @returns {Promise<EIPCSocket>}
-     */
     EIPSocketPool.prototype.acquire = function (priority) {
         var _this = this;
         if (typeof priority === "function" && this._pool)
@@ -217,4 +179,4 @@ var EIPSocketPool = /** @class */ (function (_super) {
     return EIPSocketPool;
 }(eip_socket_1.EIPContext));
 exports.default = EIPSocketPool;
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWlwLXBvb2wuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJlaXAtcG9vbC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSw4REFBdUM7QUFDdkMsc0RBQWdDO0FBQ2hDLHlEQUlzQjtBQUNiLG9CQUxGLG9CQUFTLENBS0U7QUFBRSxtQkFGbEIscUJBQVEsQ0FFa0I7QUFFNUI7SUFBNEIsaUNBQVU7SUFDcEMsdUJBQVksRUFBd0M7UUFBdEMsSUFBQSxjQUFJLEVBQUUsOEJBQVU7UUFBOUIsWUFDRSxrQkFBTSxPQUFPLENBQUMsU0F5QmY7UUF4QkMsSUFBTSxJQUFJLEdBQUcsTUFBTSxDQUFDLE1BQU0sQ0FDeEI7WUFDRSxvQkFBb0IsRUFBRSxLQUFJLENBQUMsY0FBYztTQUMxQyxFQUNELElBQUksQ0FDTCxDQUFDO1FBQ0YsS0FBSSxDQUFDLEtBQUssR0FBRyxzQkFBVyxDQUFDLFVBQVUsQ0FDakM7WUFDRSxNQUFNLEVBQUU7Z0JBQ04sT0FBTyxvQkFBUyxDQUFDLFlBQVksQ0FBQyxLQUFJLENBQUMsQ0FBQztZQUN0QyxDQUFDO1lBQ0QsT0FBTyxFQUFFLFVBQU0sTUFBTTs7O2dDQUNuQixxQkFBTSxNQUFNLENBQUMsT0FBTyxFQUFFLEVBQUE7OzRCQUF0QixTQUFzQixDQUFDOzs7O2lCQUN4QjtZQUNELFFBQVEsRUFBRSxVQUFNLE1BQU07O29CQUNwQixzQkFBTyxNQUFNLENBQUMsU0FBUyxFQUFDOztpQkFDekI7U0FDRixFQUNELElBQUksQ0FDTCxDQUFDOztRQUNGOzs7Y0FHTTtJQUNSLENBQUM7SUFNRCxzQkFBSSwrQkFBSTtRQUpSOzs7V0FHRzthQUNIO1lBQ0UsT0FBTyxJQUFJLENBQUMsS0FBSyxDQUFDLENBQUMsQ0FBQyxJQUFJLENBQUMsS0FBSyxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMsQ0FBQyxD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
+//# sourceMappingURL=eip-pool.js.map

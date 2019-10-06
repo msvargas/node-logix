@@ -5,12 +5,12 @@ import { Pool, Options } from "generic-pool";
 import {
   unpackFrom,
   pack,
-  _parseTagName,
+  parseTagName,
   BitValue,
   BitofWord,
-  _getBitOfWord,
-  _getWordCount,
-  _parseIdentityResponse,
+  getBitOfWord,
+  getWordCount,
+  parseIdentityResponse,
   nameFunction
 } from "./utils";
 import {
@@ -473,7 +473,7 @@ export default class EIPSocket extends Socket {
     const tagArray = tagName.split(".");
     tagArray.forEach((_tag, i) => {
       if (_tag.endsWith("]")) {
-        let [_, basetag, index] = _parseTagName(_tag, 0);
+        let [_, basetag, index] = parseTagName(_tag, 0);
         let BaseTagLenBytes = basetag.length;
         if (
           isBoolArray &&
@@ -609,7 +609,7 @@ export default class EIPSocket extends Socket {
     elements: number,
     data: Buffer | Array<number | string | boolean> | boolean | string
   ): Promise<Buffer | Array<number | string | boolean> | boolean | string> {
-    const [_, basetag, index] = _parseTagName(tag, 0);
+    const [_, basetag, index] = parseTagName(tag, 0);
     const datatype = this.context.knownTags[basetag][0],
       bitCount = (this.context.CIPTypes[datatype][0] as number) * 8;
     let vals;
@@ -617,11 +617,11 @@ export default class EIPSocket extends Socket {
     if (BitofWord(tag)) {
       const split_tag = tag.split("."),
         bitPos = parseInt(split_tag[split_tag.length - 1]);
-      const wordCount = _getWordCount(bitPos, elements, bitCount);
+      const wordCount = getWordCount(bitPos, elements, bitCount);
       const words = await this.getReplyValues(tag, wordCount, data);
       vals = this.wordsToBits(tag, words, elements);
     } else if (datatype === 211) {
-      const wordCount = _getWordCount(index as number, elements, bitCount),
+      const wordCount = getWordCount(index as number, elements, bitCount),
         words = await this.getReplyValues(tag, wordCount, data);
       vals = this.wordsToBits(tag, words, elements);
     } else {
@@ -646,7 +646,7 @@ export default class EIPSocket extends Socket {
 
     if (status == 0 || status == 6) {
       // parse the tag
-      const basetag = _parseTagName(tag, 0)[1];
+      const basetag = parseTagName(tag, 0)[1];
       const datatype = this.context.knownTags[basetag][0] as number,
         CIPFormat = this.context.CIPTypes[datatype][2] as string;
       let vals = [];
@@ -718,7 +718,7 @@ export default class EIPSocket extends Socket {
     value: Array<number>,
     count: number = 0
   ): Array<boolean> {
-    const [_, basetag, index] = _parseTagName(tag, 0),
+    const [_, basetag, index] = parseTagName(tag, 0),
       datatype = this.context.knownTags[basetag][0],
       bitCount = <number>this.context.CIPTypes[datatype][0] * 8;
     let bitPos;
@@ -786,8 +786,8 @@ export default class EIPSocket extends Socket {
             true,
             offset + 6
           )[0] as number;
-          const bitState = _getBitOfWord(tag, val);
-          response = new Response(tag, bitState, replyStatus);
+          const bitState = getBitOfWord(tag, val);
+          response = new LgxResponse(tag, bitState, replyStatus);
           //reply.push(bitState);
         } else if (dataTypeValue == 211) {
           const dataTypeFormat = this.context.CIPTypes[
@@ -799,9 +799,9 @@ export default class EIPSocket extends Socket {
             true,
             offset + 6
           )[0] as number;
-          const bitState = _getBitOfWord(tag, val);
+          const bitState = getBitOfWord(tag, val);
           //reply.push(bitState);
-          response = new Response(tag, bitState, replyStatus);
+          response = new LgxResponse(tag, bitState, replyStatus);
         } else if (dataTypeValue == 160) {
           const strlen = unpackFrom(
             "<B",
@@ -811,7 +811,7 @@ export default class EIPSocket extends Socket {
           )[0] as number;
           const s = stripped.slice(offset + 12, offset + 12 + strlen);
           const value = s.toString("utf8");
-          response = new Response(tag, value, replyStatus);
+          response = new LgxResponse(tag, value, replyStatus);
           //reply.push(s.toString("utf8"));
         } else {
           const dataTypeFormat = this.context.CIPTypes[
@@ -824,10 +824,10 @@ export default class EIPSocket extends Socket {
             false,
             offset + 6
           )[0];
-          response = new Response(tag, value, replyStatus);
+          response = new LgxResponse(tag, value, replyStatus);
         }
       } else {
-        response = new Response(tag, undefined, replyStatus);
+        response = new LgxResponse(tag, undefined, replyStatus);
       }
       reply.push(response);
     }
@@ -948,7 +948,7 @@ export default class EIPSocket extends Socket {
     const s = tag.split(".");
     let bit;
     if (dataType == 211) {
-      bit = <number>_parseTagName(s[s.length - 1], 0)[2] % 32;
+      bit = <number>parseTagName(s[s.length - 1], 0)[2] % 32;
     } else {
       bit = parseInt(s[s.length - 1]);
     }
@@ -1051,7 +1051,7 @@ export default class EIPSocket extends Socket {
     return Bluebird.try<boolean>(() => {
       this.offset = 0;
       const writeData: Array<string | number | Array<number>> = [];
-      const [t, b, i] = _parseTagName(tag, 0);
+      const [t, b, i] = parseTagName(tag, 0);
       return this._initial_read(b, dt as number)
         .then(() => b)
         .then(b => {
@@ -1118,7 +1118,7 @@ export default class EIPSocket extends Socket {
     const { count: elements = 1, dataType: dt } = options;
     return Bluebird.try(() => {
       this.offset = 0;
-      const [t, b, i] = _parseTagName(tag, 0);
+      const [t, b, i] = parseTagName(tag, 0);
       return this._initial_read(b, dt as number)
         .then(() => [t, b, i])
         .spread((t, b, i) => {
@@ -1129,14 +1129,14 @@ export default class EIPSocket extends Socket {
           if (datatype == 211) {
             //bool array
             tagData = this.buildTagIOI(tag, true);
-            words = _getWordCount(i as number, elements, bitCount);
+            words = getWordCount(i as number, elements, bitCount);
             readRequest = this.addReadIOI(tagData, words);
           } else if (BitofWord(t as string)) {
             // bits of word
             const split_tag = tag.split(".");
             const bitPos = parseInt(split_tag[split_tag.length - 1]);
             tagData = this.buildTagIOI(tag, false);
-            words = _getWordCount(bitPos, elements, bitCount);
+            words = getWordCount(bitPos, elements, bitCount);
 
             readRequest = this.addReadIOI(tagData, words);
           } else {
@@ -1161,8 +1161,8 @@ export default class EIPSocket extends Socket {
    * @description Processes the multiple read request
    * @param {Array} tags
    */
-  multiReadTag(tags: Array<string>): Bluebird<Array<Response>> {
-    return Bluebird.try<Array<Response>>(async () => {
+  multiReadTag(tags: Array<string>): Bluebird<Array<LgxResponse>> {
+    return Bluebird.try<Array<LgxResponse>>(async () => {
       const serviceSegments = [];
       const segments = [];
       let tagCount = tags.length;
@@ -1172,12 +1172,12 @@ export default class EIPSocket extends Socket {
         const tag = tags[index];
         let tag_name, base;
         if (Array.isArray(tag)) {
-          const result = _parseTagName(tag[0], 0);
+          const result = parseTagName(tag[0], 0);
           base = result[1];
           tag_name = result[0];
           await this._initial_read(base, tag[1]);
         } else {
-          const result = _parseTagName(tag, 0);
+          const result = parseTagName(tag, 0);
           base = result[1];
           tag_name = result[0];
           await this._initial_read(base, null);
@@ -1527,7 +1527,7 @@ export default class EIPSocket extends Socket {
     return Bluebird.try<LGXDevice | undefined>(async () => {
       const request = EIPSocket.buildListIdentity();
       const [_, data] = await this.getBytes(request);
-      return _parseIdentityResponse(data, undefined, resp);
+      return parseIdentityResponse(data, undefined, resp);
     });
   }
   /**
@@ -1566,8 +1566,8 @@ export default class EIPSocket extends Socket {
         const status = <number>unpackFrom("<B", retData, true, 46)[0];
 
         return status == 0
-          ? new Response(undefined, _parseIdentityResponse(retData), status)
-          : new Response(undefined, new LGXDevice(), status);
+          ? new LgxResponse(undefined, parseIdentityResponse(retData), status)
+          : new LgxResponse(undefined, new LGXDevice(), status);
       }
     );
   }
@@ -1788,6 +1788,12 @@ export default class EIPSocket extends Socket {
       0x00 // ListOptions
     );
   }
+  /**
+   * @description to string override
+   */
+  toString() {
+    return "[Object EIPSocket]";
+  }
 }
 
 /**
@@ -1822,9 +1828,12 @@ export class LgxTag {
   struct: boolean = false;
   size: number = 0x00;
   constructor() {}
+  toString() {
+    return "[Object LgxTag]";
+  }
 }
 
-export class Response {
+export class LgxResponse {
   public message?: string;
   constructor(
     public tag_name?: string | undefined,
@@ -1832,6 +1841,9 @@ export class Response {
     public status?: number
   ) {
     if (status) this.message = getErrorCode(status);
+  }
+  toString() {
+    return "[Object LgxResponse]";
   }
 }
 

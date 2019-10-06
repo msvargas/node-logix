@@ -1,0 +1,12 @@
+{
+    "Micro800": {
+        "digital": {
+            "output": "_IO_EM_DO_{dd}",
+            "input": "_IO_EM_DI_{dd}"
+        },
+        "analog": {
+            "input": "_IO_EM_AI_{dd}",
+            "output": "_IO_EM_AO_{dd}"
+        }
+    }
+}

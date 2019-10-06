@@ -6,11 +6,17 @@ Nodejs package to handle PLC as Micro820 of Allen Bradley
 
 - Manager multiple connections to write/read tags using pooling with generic-pool
 
-- Listener events as _connect_, _connect_error_, _disconnect_ or _found_ (discover function)
+- Listener events as _connect_, _connect_error_, _disconnect_, _closing_, or _found_, __found_error_ (discover function)
 
 - Ardunio mode: functions as digitalRead, digitalWrite...
 
-- Add typescript
+- Autoclose session with PLC
+
+- Enable or disable identity on connect (ignoreIdentity param in connect function)
+
+- Support to write and read string and array
+
+- Support typescript
 
 ## Install package
 
@@ -86,12 +92,10 @@ comm
 
 ## Default Options
 
-**NOTE:** Micro800 option default: _true_:
-
 ```js
 PLC.defaultOptions = {
   allowHalfOpen: true, // Socket option nodejs, keep open TCP socket
-  Micro800: true,     // use path for Micro800
+  Micro800: false,     // use path for Micro800
   port: 44818,        // default port EIP
   connectTimeout: 3000,
   arduinoMode: true,  // Enable Arduino functions only Micro800
@@ -106,18 +110,6 @@ PLC.defaultOptions = {
     idleTimeoutMillis: 30000
   }
 ```
-
-## Inpired by projects
-
-- [pylogix](https://github.com/dmroeder/pylogix)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENCE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details
-
-# Notes
-
-- For Micro800 of CIP Service if limited, no working getProgramList, getModuleProperties(0)..., only get global tag names
 
 - ArduinoMode only working with Micro800 enable, to working with other PLC, yout must be create custom pinMapping JSON and replacePin function:
 
@@ -151,6 +143,7 @@ function _replacePin(str = "", pin) {
   }
   return str;
 }
+
 ```
 ## More Examples
  https://github.com/dmroeder/pylogix/tree/master/pylogix/examples
@@ -168,3 +161,11 @@ function _replacePin(str = "", pin) {
   DINT's for example.
 
 - Micro800 has CIP protocol Limited, check examples to check work functions
+
+## Inpired by projects
+
+- [pylogix](https://github.com/dmroeder/pylogix)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENCE](https://github.com/cmseaton42/node-ethernet-ip/blob/master/LICENSE) file for details

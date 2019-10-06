@@ -28,7 +28,7 @@ import LGXDevice from "./lgxDevice";
 import {
   _replacePin as replacePin,
   flatten,
-  _parseIdentityResponse,
+  parseIdentityResponse,
   unpackFrom,
   ILGXDevice
 } from "./utils";
@@ -47,7 +47,7 @@ import {
   IEIPContextOptions,
   ITagReadOptions,
   ITagWriteOptions,
-  Response
+  LgxResponse
 } from "./eip-socket";
 import pinMapping from "../resources/pin-mapping.json"; // ping mapping to use digitalWrite... as Arduino
 
@@ -82,6 +82,7 @@ export interface IDiscoverOptions extends SocketOptions {
   onFound?: (device: LGXDevice, length: number) => void;
   onError?: (msg: Buffer, rinfo: RemoteInfo) => void;
   family?: "IPv4" | "IPv6";
+  port?: number;
 }
 
 export interface ICustomSocket {
@@ -412,30 +413,29 @@ class PLC extends EIPSocketPool implements IDeviceProps {
   }
   /**
    * @description write to output using pin mapping
-   * @param {Number} pin
+   * @param {Number|String} pin
    * @param {Number|Boolean}} value
    */
   digitalWrite(
-    pin: number,
+    pin: number | string,
     value: boolean | number,
     options: ITagWriteOptions = {
       dataType: CIPTypesValues.BOOL
     }
-  ) {
-    return Bluebird.try(() => {
+  ): Bluebird<Pin | undefined> {
+    return Bluebird.try<Pin | undefined>(() => {
       this._checkPin(pin, value);
-
-      this._pingMapping &&
+      return (
+        this._pingMapping &&
         this._getPinMapping(
           this._pingMapping["digital"]["output"],
-          String(pin)
-        ).then(tag => {
-          return tag
-            ? this.write(tag, Number(value), options).then(
-                _ => new Pin(tag, value)
-              )
-            : undefined;
-        });
+          pin.toString()
+        ).then(async tag => {
+          return this.write(tag, Number(value), options).then(
+            () => new Pin(tag, value)
+          );
+        })
+      );
     });
   }
   /**
@@ -443,20 +443,18 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {Number} pin
    */
   digitalOutRead(
-    pin: number,
+    pin: number | string,
     options: ITagReadOptions = { dataType: CIPTypesValues.BOOL }
-  ) {
-    return Bluebird.try(() => {
+  ): Bluebird<Pin | undefined> {
+    return Bluebird.try<Pin | undefined>(() => {
       this._checkPin(pin);
       return (
         this._pingMapping &&
         this._getPinMapping(
           this._pingMapping["digital"]["output"],
-          String(pin)
-        ).then(tag => {
-          return tag
-            ? this.read(tag, options).then(value => new Pin(tag, value))
-            : undefined;
+          pin.toString()
+        ).then(async tag => {
+          return this.read(tag, options).then(value => new Pin(tag, value));
         })
       );
     });
@@ -466,20 +464,18 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {Number} pin
    */
   digitalRead(
-    pin: number,
+    pin: number | string,
     options: ITagReadOptions = { dataType: CIPTypesValues.BOOL }
-  ) {
-    return Bluebird.try(() => {
+  ): Bluebird<Pin | undefined> {
+    return Bluebird.try<Pin | undefined>(() => {
       this._checkPin(pin);
       return (
         this._pingMapping &&
         this._getPinMapping(
           this._pingMapping["digital"]["input"],
-          String(pin)
-        ).then(tag => {
-          return !tag
-            ? undefined
-            : this.read(tag, options).then(value => new Pin(tag, value));
+          pin.toString()
+        ).then(async tag => {
+          return this.read(tag, options).then(value => new Pin(tag, value));
         })
       );
     });
@@ -490,23 +486,21 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {Number} value
    */
   analogWrite(
-    pin: number,
+    pin: number | string,
     value: number,
     options: ITagWriteOptions = { dataType: CIPTypesValues.UINT }
-  ) {
-    return Bluebird.try(() => {
+  ): Bluebird<Pin | undefined> {
+    return Bluebird.try<Pin | undefined>(() => {
       this._checkPin(pin, value);
       return (
         this._pingMapping &&
         this._getPinMapping(
           this._pingMapping["analog"]["output"],
-          String(pin)
-        ).then(tag => {
-          return !tag
-            ? undefined
-            : this.write(tag, Number(value), options).then(
-                _ => new Pin(tag, value)
-              );
+          pin.toString()
+        ).then(async tag => {
+          return this.write(tag, Number(value), options).then(
+            _ => new Pin(tag, value)
+          );
         })
       );
     });
@@ -516,20 +510,18 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {Number} pin
    */
   analogOutRead(
-    pin: number,
+    pin: number | string,
     options: ITagReadOptions = { dataType: CIPTypesValues.UINT }
-  ) {
-    return Bluebird.try(() => {
+  ): Bluebird<Pin | undefined> {
+    return Bluebird.try<Pin | undefined>(() => {
       this._checkPin(pin);
       return (
         this._pingMapping &&
         this._getPinMapping(
           this._pingMapping["analog"]["output"],
-          String(pin)
-        ).then(tag => {
-          return !tag
-            ? undefined
-            : this.read(tag, options).then(value => new Pin(tag, value));
+          pin.toString()
+        ).then(async tag => {
+          return this.read(tag, options).then(value => new Pin(tag, value));
         })
       );
     });
@@ -539,20 +531,18 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {Number} pin
    */
   analogRead(
-    pin: number,
+    pin: number | string,
     options: ITagReadOptions = { dataType: CIPTypesValues.UINT }
-  ) {
-    return Bluebird.try(() => {
+  ): Bluebird<Pin | undefined> {
+    return Bluebird.try<Pin | undefined>(() => {
       this._checkPin(pin);
       return (
         this._pingMapping &&
         this._getPinMapping(
           this._pingMapping["analog"]["input"],
-          String(pin)
-        ).then(tag => {
-          return !tag
-            ? undefined
-            : this.read(tag, options).then(value => new Pin(tag, value));
+          pin.toString()
+        ).then(async tag => {
+          return this.read(tag, options).then(value => new Pin(tag, value));
         })
       );
     });
@@ -561,7 +551,7 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @description Read multiple tags in one request
    * @param {Array} tags
    */
-  multiRead(tags: Array<string>): Bluebird<Response[]> {
+  multiRead(tags: Array<string>): Bluebird<LgxResponse[]> {
     return Bluebird.try(() =>
       super.acquire(socket => socket.multiReadTag(tags))
     );
@@ -628,9 +618,17 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @param {Object} options
    * @returns {Bluebird<Array<LGXDevice>>} devices
    */
-  static discover(timeout = 200, options: IDiscoverOptions) {
-    const { family = "IPv4", onFound, onError, ...socketOptions } =
-      options || {};
+  static discover(
+    timeout: number = 200,
+    options?: IDiscoverOptions
+  ): Bluebird<Array<LGXDevice>> {
+    const {
+      family = "IPv4",
+      port = 44818,
+      onFound,
+      onError,
+      ...socketOptions
+    } = options || ({} as IDiscoverOptions);
     if (family !== "IPv4" && family !== "IPv6")
       throw new EvalError("Incorrect ip family, must be IPv4 or IPv6");
     const devices: Array<LGXDevice> = [];
@@ -638,7 +636,6 @@ class PLC extends EIPSocketPool implements IDeviceProps {
     const platform = os.platform();
     return new Bluebird((resolve, reject) => {
       const request = EIPSocket.buildListIdentity();
-      const port = PLC.defaultOptions.port || 44818;
       //get available ip addresses
       const addresses = flatten(Object.values(os.networkInterfaces()))
         .filter(
@@ -684,7 +681,7 @@ class PLC extends EIPSocketPool implements IDeviceProps {
                 const context = unpackFrom("<Q", msg, true, 14)[0];
                 if (context.toString() === "470018779464") {
                   delete rinfo.size;
-                  const device = _parseIdentityResponse(msg, rinfo);
+                  const device = parseIdentityResponse(msg, rinfo);
                   if (device instanceof LGXDevice && device.IPAddress) {
                     devices.push(device);
                     onFound && onFound(device, devices.length);
@@ -733,17 +730,48 @@ class PLC extends EIPSocketPool implements IDeviceProps {
    * @description check valid mapping
    */
   private _getPinMapping(str: string, pin: string) {
-    return Bluebird.try(() => {
-      if (!this._replacePin || !this._pingMapping)
+    return Bluebird.try<string>(() => {
+      if (!this.replacePin || !this._pingMapping)
         throw new PinMappingError(
           "invalid replacePin or pingMaping, please check, this.replacePin or this.pinMapping"
         );
-      try {
-        return this.replacePin && this.replacePin(str, pin);
-      } catch (error) {
-        throw error;
+      else if (!!this.replacePin) {
+        try {
+          return this.replacePin(str, pin);
+        } catch (error) {
+          throw error;
+        }
+      } else {
+        throw new PinMappingError(
+          "invalid replacePin or pingMaping, please check, this.replacePin"
+        );
       }
     });
+  }
+  /**
+   * @override Override toSTting method
+   */
+  toString() {
+    return `[Object PLC ${this.host}]`;
+  }
+  /**
+   * @override Override toJSON method
+   */
+  toJSON() {
+    return {
+      host: this.host,
+      vendor: this.vendor,
+      vendorId: this.vendorId,
+      deviceType: this.deviceType,
+      device: this.device,
+      productCode: this.productCode,
+      productName: this.productName,
+      revision: this.revision,
+      status: this.status,
+      state: this.state,
+      serialNumber: this.serialNumber,
+      Micro800: this.Micro800
+    };
   }
 }
 

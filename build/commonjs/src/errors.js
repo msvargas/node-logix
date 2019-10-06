@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var CIPErrorCodes_json_1 = __importDefault(require("../resources/CIPErrorCodes.json"));
 exports.cipErrorCodes = CIPErrorCodes_json_1.default;
-var ValueError = /** @class */ (function (_super) {
+var ValueError = (function (_super) {
     __extends(ValueError, _super);
     function ValueError(message) {
         var _this = _super.call(this, message) || this;
@@ -28,7 +28,7 @@ var ValueError = /** @class */ (function (_super) {
     return ValueError;
 }(Error));
 exports.ValueError = ValueError;
-var LogixError = /** @class */ (function (_super) {
+var LogixError = (function (_super) {
     __extends(LogixError, _super);
     function LogixError(message, status) {
         var _this = _super.call(this, message) || this;
@@ -39,7 +39,7 @@ var LogixError = /** @class */ (function (_super) {
     return LogixError;
 }(Error));
 exports.LogixError = LogixError;
-var ConnectionError = /** @class */ (function (_super) {
+var ConnectionError = (function (_super) {
     __extends(ConnectionError, _super);
     function ConnectionError(message) {
         var _this = _super.call(this, message) || this;
@@ -49,7 +49,7 @@ var ConnectionError = /** @class */ (function (_super) {
     return ConnectionError;
 }(Error));
 exports.ConnectionError = ConnectionError;
-var ConnectionTimeoutError = /** @class */ (function (_super) {
+var ConnectionTimeoutError = (function (_super) {
     __extends(ConnectionTimeoutError, _super);
     function ConnectionTimeoutError(host, timeout) {
         var _this = _super.call(this, "Faile to connect with PLC(" + host + ") timeout at " + timeout + "ms") || this;
@@ -61,7 +61,7 @@ var ConnectionTimeoutError = /** @class */ (function (_super) {
     return ConnectionTimeoutError;
 }(Error));
 exports.ConnectionTimeoutError = ConnectionTimeoutError;
-var DisconnectedError = /** @class */ (function (_super) {
+var DisconnectedError = (function (_super) {
     __extends(DisconnectedError, _super);
     function DisconnectedError() {
         var _this = _super.call(this, "Failed to send data, PLC was disconnected or no connected yet") || this;
@@ -71,7 +71,7 @@ var DisconnectedError = /** @class */ (function (_super) {
     return DisconnectedError;
 }(Error));
 exports.DisconnectedError = DisconnectedError;
-var RegisterSessionError = /** @class */ (function (_super) {
+var RegisterSessionError = (function (_super) {
     __extends(RegisterSessionError, _super);
     function RegisterSessionError() {
         return _super.call(this, "Failed to register session") || this;
@@ -79,7 +79,7 @@ var RegisterSessionError = /** @class */ (function (_super) {
     return RegisterSessionError;
 }(ConnectionError));
 exports.RegisterSessionError = RegisterSessionError;
-var ConnectionLostError = /** @class */ (function (_super) {
+var ConnectionLostError = (function (_super) {
     __extends(ConnectionLostError, _super);
     function ConnectionLostError() {
         var _this = _super.call(this, CIPErrorCodes_json_1.default[7]) || this;
@@ -89,7 +89,7 @@ var ConnectionLostError = /** @class */ (function (_super) {
     return ConnectionLostError;
 }(ConnectionError));
 exports.ConnectionLostError = ConnectionLostError;
-var ForwarOpenError = /** @class */ (function (_super) {
+var ForwarOpenError = (function (_super) {
     __extends(ForwarOpenError, _super);
     function ForwarOpenError() {
         return _super.call(this, "Forward open Failed") || this;
@@ -97,7 +97,7 @@ var ForwarOpenError = /** @class */ (function (_super) {
     return ForwarOpenError;
 }(ConnectionError));
 exports.ForwarOpenError = ForwarOpenError;
-var PinMappingError = /** @class */ (function (_super) {
+var PinMappingError = (function (_super) {
     __extends(PinMappingError, _super);
     function PinMappingError(message) {
         var _this = _super.call(this, "Pin mapping error: " + message) || this;
@@ -107,13 +107,6 @@ var PinMappingError = /** @class */ (function (_super) {
     return PinMappingError;
 }(Error));
 exports.PinMappingError = PinMappingError;
-/* export class ConnectionSizeError extends Error{
-  constructor(connectionSize? : number){
-    super("Max ConnectionSize");
-    this.name = "ConnectionSizeError"
-  }
-} */
-//Get the CIP error code string
 function getErrorCode(status) {
     return status in CIPErrorCodes_json_1.default
         ? CIPErrorCodes_json_1.default[status]
@@ -132,4 +125,4 @@ exports.default = {
     ConnectionError: ConnectionError,
     cipErrorCodes: CIPErrorCodes_json_1.default
 };
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZXJyb3JzLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiZXJyb3JzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLHVGQUE0RDtBQThFbkQsd0JBOUVGLDRCQUFhLENBOEVFO0FBNUV0QjtJQUFnQyw4QkFBSztJQUNuQyxvQkFBWSxPQUFlO1FBQTNCLFlBQ0Usa0JBQU0sT0FBTyxDQUFDLFNBRWY7UUFEQyxLQUFJLENBQUMsSUFBSSxHQUFHLFlBQVksQ0FBQzs7SUFDM0IsQ0FBQztJQUNILGlCQUFDO0FBQUQsQ0FBQyxBQUxELENBQWdDLEtBQUssR0FLcEM7QUFMWSxnQ0FBVTtBQU92QjtJQUFnQyw4QkFBSztJQUNuQyxvQkFBWSxPQUFlLEVBQVMsTUFBYztRQUFsRCxZQUNFLGtCQUFNLE9BQU8sQ0FBQyxTQUVmO1FBSG1DLFlBQU0sR0FBTixNQUFNLENBQVE7UUFFaEQsS0FBSSxDQUFDLElBQUksR0FBRyxZQUFZLENBQUM7O0lBQzNCLENBQUM7SUFDSCxpQkFBQztBQUFELENBQUMsQUFMRCxDQUFnQyxLQUFLLEdBS3BDO0FBTFksZ0NBQVU7QUFPdkI7SUFBcUMsbUNBQUs7SUFDeEMseUJBQVksT0FBZTtRQUEzQixZQUNFLGtCQUFNLE9BQU8sQ0FBQyxTQUVmO1FBREMsS0FBSSxDQUFDLElBQUksR0FBRyxpQkFBaUIsQ0FBQzs7SUFDaEMsQ0FBQztJQUNILHNCQUFDO0FBQUQsQ0FBQyxBQUxELENBQXFDLEtBQUssR0FLekM7QUFMWSwwQ0FBZTtBQU81QjtJQUE0QywwQ0FBSztJQUMvQyxnQ0FBbUIsSUFBYSxFQUFTLE9BQWdCO1FBQXpELFlBQ0Usa0JBQ0UsNEJBQTRCLEdBQUcsSUFBSSxHQUFHLGVBQWUsR0FBRyxPQUFPLEdBQUcsSUFBSSxDQUN2RSxTQUVGO1FBTGtCLFVBQUksR0FBSixJQUFJLENBQVM7UUFBUyxhQUFPLEdBQVAsT0FBTyxDQUFTO1FBSXZELEtBQUksQ0FBQyxJQUFJLEdBQUcsd0JBQXdCLENBQUM7O0lBQ3ZDLENBQUM7SUFDSCw2QkFBQztBQUFELENBQUMsQUFQRCxDQUE0QyxLQUFLLEdBT2hEO0FBUFksd0RBQXNCO0FBU25DO0lBQXVDLHFDQUFLO0lBQzFDO1FBQUEsWUFDRSxrQkFBTSwrREFBK0QsQ0FBQyxTQUV2RTtRQURDLEtBQUksQ0FBQyxJQUFJLEdBQUcsbUJBQW1CLENBQUM7O0lBQ2xDLENBQUM7SUFDSCx3QkFBQztBQUFELENBQUMsQUFMRCxDQUF1QyxLQUFLLEdBSzNDO0FBTFksOENBQWlCO0FBTzlCO0lBQTBDLHdDQUFlO0lBQ3ZEO2VBQ0Usa0JBQU0sNEJBQTRCLENBQUM7SUFDckMsQ0FBQztJQUNILDJCQUFDO0FBQUQsQ0FBQyxBQUpELENBQTBDLGVBQWUsR0FJeEQ7QUFKWSxvREFBb0I7QUFNakM7SUFBeUMsdUNBQWU7SUFFdEQ7UUFBQSxZQUNFLGtCQUFNLDRCQUFhLENBQUMsQ0FBQyxDQUFDLENBQUMsU0FDeEI7UUFIRCxZQUFNLEdBQVcsQ0FBQyxDQUFDOztJQUduQixDQUFDO0lBQ0gsMEJBQUM7QUFBRCxDQUFDLEFBTEQsQ0FBeUMsZUFBZSxHQUt2RDtBQUxZLGtEQUFtQjtBQU9oQztJQUFxQyxtQ0FBZTtJQUNsRDtlQUNFLGtCQUFNLHFCQUFxQixDQUFDO0lBQzlCLENBQUM7SUFDSCxzQkFBQztBQUFELENBQUMsQUFKRCxDQUFxQyxlQUFlLEdBSW5EO0FBSlksMENBQWU7QUFNNUI7SUFBcUMsbUNBQUs7SUFDeEMseUJBQVksT0FBZTtRQUEzQixZQUNFLGtCQUFNLHFCQUFxQixHQUFHLE9BQU8sQ0FBQyxTQUV2QztRQURDLEtBQUksQ0FBQyxJQUFJLEdBQUcsaUJBQWlCLENBQUM7O0lBQ2hDLENBQUM7SUFDSCxzQkFBQztBQUFELENBQUMsQUFMRCxDQUFxQyxLQUFLLEdBS3pDO0FBTFksMENBQWU7QUFPNUI7Ozs7O0lBS0k7QUFDSiwrQkFBK0I7QUFDL0IsU0FBZ0IsWUFBWSxDQUFDLE1BQWM7SUFDekMsT0FBTyxNQUFNLElBQUksNEJBQWE7UUFDNUIsQ0FBQyxDQUFFLDRCQUFxQixDQUFDLE1BQU0sQ0FBQztRQUNoQyxDQUFDLENBQUMsZ0JBQWdCLEdBQUcsTUFBTSxDQUFDO0FBQ2hDLENBQUM7QUFKRCxvQ0FJQztBQUlELGtCQUFlO0lBQ2IsZUFBZSxpQkFBQTtJQUNmLGVBQWUsaUJBQUE7SUFDZixtQkFBbUIscUJBQUE7SUFDbkIsb0JBQW9CLHNCQUFBO0lBQ3BCLGlCQUFpQixtQkFBQTtJQUNqQixzQkFBc0Isd0JBQUE7SUFDdEIsVUFBVSxZQUFBO0lBQ1YsVUFBVSxZQUFBO0lBQ1YsZUFBZSxpQkFBQTtJQUNmLGFBQWEsOEJBQUE7Q0FDZCxDQUFDIn0=
+//# sourceMappingURL=errors.js.map

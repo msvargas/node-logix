@@ -1,12 +1,20 @@
 {
   "license": "MIT",
-  "version": "1.0.12",
+  "version": "1.0.13",
+  "name": "node-logix",
+  "description": "Nodejs EtherNet/IP to handle PLC as Micro820, Logix...",
   "author": "Michael Vargas",
+  "module": "./build/es6/src/index.js",
+  "main": "./build/commonjs/src/index.js",
+  "typings": "./build/commonjs/src/index.d.ts",
   "scripts": {
     "prettier": "prettier --write src/**/*.js examples/*.js src/**/*.ts",
     "publish:npm": "npm publish --access public",
+    "build": "yarn tsc&&yarn tsc-es6",
+    "tsc-es6": "tsc --p tsconfig.es6.json",
     "tsc": "tsc",
-    "clean": "tsc --build --clean"
+    "clean": "RMDIR /Q/S build",
+    "docs": "typedoc --options ./typedoc.config.js ./src"
   },
   "dependencies": {
     "bluebird": "^3.5.5",
@@ -19,11 +27,9 @@
     "@types/node": "^12.7.8",
     "@types/python-struct": "^1.0.0",
     "prettier": "^1.18.2",
+    "typedoc": "^0.15.0",
     "typescript": "^3.6.3"
   },
-  "name": "node-logix",
-  "description": "Nodejs EtherNet/IP to handle PLC as Micro820, Logix...",
-  "main": "index.js",
   "repository": "https://github.com/punisher97/node-logix.git",
   "keywords": [
     "Allen Bradley",
