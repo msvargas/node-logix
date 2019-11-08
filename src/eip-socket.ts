@@ -1460,12 +1460,14 @@ export default class EIPSocket extends Socket {
    * @param {Number} instance
    */
   getTemplateAttribute(instance: number): Bluebird<Buffer> {
-    return Bluebird.try(async () : Promise<Buffer> => {
-      const readRequest = this.buildTemplateAttributes(instance);
-      const eipHeader = this.buildEIPHeader(readRequest);
-      const [_, retData] = await this.getBytes(eipHeader);
-      return retData;
-    });
+    return Bluebird.try(
+      async (): Promise<Buffer> => {
+        const readRequest = this.buildTemplateAttributes(instance);
+        const eipHeader = this.buildEIPHeader(readRequest);
+        const [_, retData] = await this.getBytes(eipHeader);
+        return retData;
+      }
+    );
   }
   /**
    * @description  Get the members of a UDT so we can get it

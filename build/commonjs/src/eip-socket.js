@@ -1097,28 +1097,24 @@ var EIPSocket = (function (_super) {
         });
     };
     EIPSocket.prototype.getTemplateAttribute = function (instance) {
-        return __awaiter(this, void 0, bluebird_1.default, function () {
-            var _this = this;
-            return __generator(this, function (_a) {
-                return [2, bluebird_1.default.try(function () { return __awaiter(_this, void 0, void 0, function () {
-                        var readRequest, eipHeader, _a, _, retData;
-                        return __generator(this, function (_b) {
-                            switch (_b.label) {
-                                case 0:
-                                    readRequest = this.buildTemplateAttributes(instance);
-                                    eipHeader = this.buildEIPHeader(readRequest);
-                                    return [4, this.getBytes(eipHeader)];
-                                case 1:
-                                    _a = _b.sent(), _ = _a[0], retData = _a[1];
-                                    return [2, retData];
-                            }
-                        });
-                    }); })];
+        var _this = this;
+        return bluebird_1.default.try(function () { return __awaiter(_this, void 0, void 0, function () {
+            var readRequest, eipHeader, _a, _, retData;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        readRequest = this.buildTemplateAttributes(instance);
+                        eipHeader = this.buildEIPHeader(readRequest);
+                        return [4, this.getBytes(eipHeader)];
+                    case 1:
+                        _a = _b.sent(), _ = _a[0], retData = _a[1];
+                        return [2, retData];
+                }
             });
-        });
+        }); });
     };
     EIPSocket.prototype.getTemplate = function (instance, dataLen) {
-        return __awaiter(this, void 0, bluebird_1.default, function () {
+        return __awaiter(this, void 0, void 0, function () {
             var readRequest, eipHeader, _a, _, retData;
             return __generator(this, function (_b) {
                 switch (_b.label) {

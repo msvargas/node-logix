@@ -1,12 +1,12 @@
 {
   "license": "MIT",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "name": "node-logix",
   "description": "Nodejs EtherNet/IP to handle PLC as Micro820, Logix...",
   "author": "Michael Vargas",
   "module": "./build/es6/src/index.js",
   "main": "./build/commonjs/src/index.js",
-  "typings": "./build/commonjs/src/index.d.ts",
+  "typings": "./typings/src/index.d.ts",
   "scripts": {
     "prettier": "prettier --write src/**/*.js examples/*.js src/**/*.ts",
     "publish:npm": "npm publish --access public",

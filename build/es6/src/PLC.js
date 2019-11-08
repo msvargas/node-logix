@@ -153,9 +153,11 @@ var PLC = (function (_super) {
             var onExit = function () {
                 _this.close();
             };
-            process.once("SIGINT", onExit);
-            process.once("SIGKILL", onExit);
             process.once("beforeExit", onExit);
+            process.once("SIGINT", onExit);
+            if (parseInt(process.versions.node) >= 10) {
+                process.once("SIGKILL", onExit);
+            }
         }
         return _this;
     }
@@ -306,12 +308,12 @@ var PLC = (function (_super) {
         }; }
         return Bluebird.try(function () {
             _this._checkPin(pin, value);
-            _this._pingMapping &&
-                _this._getPinMapping(_this._pingMapping["digital"]["output"], String(pin)).then(function (tag) {
-                    return tag
-                        ? _this.write(tag, Number(value), options).then(function (_) { return new Pin(tag, value); })
-                        : undefined;
-                });
+            return (_this._pingMapping &&
+                _this._getPinMapping(_this._pingMapping["digital"]["output"], pin.toString()).then(function (tag) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        return [2, this.write(tag, Number(value), options).then(function () { return new Pin(tag, value); })];
+                    });
+                }); }));
         });
     };
     PLC.prototype.digitalOutRead = function (pin, options) {
@@ -320,11 +322,11 @@ var PLC = (function (_super) {
         return Bluebird.try(function () {
             _this._checkPin(pin);
             return (_this._pingMapping &&
-                _this._getPinMapping(_this._pingMapping["digital"]["output"], String(pin)).then(function (tag) {
-                    return tag
-                        ? _this.read(tag, options).then(function (value) { return new Pin(tag, value); })
-                        : undefined;
-                }));
+                _this._getPinMapping(_this._pingMapping["digital"]["output"], pin.toString()).then(function (tag) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        return [2, this.read(tag, options).then(function (value) { return new Pin(tag, value); })];
+                    });
+                }); }));
         });
     };
     PLC.prototype.digitalRead = function (pin, options) {
@@ -333,11 +335,11 @@ var PLC = (function (_super) {
         return Bluebird.try(function () {
             _this._checkPin(pin);
             return (_this._pingMapping &&
-                _this._getPinMapping(_this._pingMapping["digital"]["input"], String(pin)).then(function (tag) {
-                    return !tag
-                        ? undefined
-                        : _this.read(tag, options).then(function (value) { return new Pin(tag, value); });
-                }));
+                _this._getPinMapping(_this._pingMapping["digital"]["input"], pin.toString()).then(function (tag) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        return [2, this.read(tag, options).then(function (value) { return new Pin(tag, value); })];
+                    });
+                }); }));
         });
     };
     PLC.prototype.analogWrite = function (pin, value, options) {
@@ -346,11 +348,11 @@ var PLC = (function (_super) {
         return Bluebird.try(function () {
             _this._checkPin(pin, value);
             return (_this._pingMapping &&
-                _this._getPinMapping(_this._pingMapping["analog"]["output"], String(pin)).then(function (tag) {
-                    return !tag
-                        ? undefined
-                        : _this.write(tag, Number(value), options).then(function (_) { return new Pin(tag, value); });
-                }));
+                _this._getPinMapping(_this._pingMapping["analog"]["output"], pin.toString()).then(function (tag) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        return [2, this.write(tag, Number(value), options).then(function (_) { return new Pin(tag, value); })];
+                    });
+                }); }));
         });
     };
     PLC.prototype.analogOutRead = function (pin, options) {
@@ -359,11 +361,11 @@ var PLC = (function (_super) {
         return Bluebird.try(function () {
             _this._checkPin(pin);
             return (_this._pingMapping &&
-                _this._getPinMapping(_this._pingMapping["analog"]["output"], String(pin)).then(function (tag) {
-                    return !tag
-                        ? undefined
-                        : _this.read(tag, options).then(function (value) { return new Pin(tag, value); });
-                }));
+                _this._getPinMapping(_this._pingMapping["analog"]["output"], pin.toString()).then(function (tag) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        return [2, this.read(tag, options).then(function (value) { return new Pin(tag, value); })];
+                    });
+                }); }));
         });
     };
     PLC.prototype.analogRead = function (pin, options) {
@@ -372,11 +374,11 @@ var PLC = (function (_super) {
         return Bluebird.try(function () {
             _this._checkPin(pin);
             return (_this._pingMapping &&
-                _this._getPinMapping(_this._pingMapping["analog"]["input"], String(pin)).then(function (tag) {
-                    return !tag
-                        ? undefined
-                        : _this.read(tag, options).then(function (value) { return new Pin(tag, value); });
-                }));
+                _this._getPinMapping(_this._pingMapping["analog"]["input"], pin.toString()).then(function (tag) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        return [2, this.read(tag, options).then(function (value) { return new Pin(tag, value); })];
+                    });
+                }); }));
         });
     };
     PLC.prototype.multiRead = function (tags) {
@@ -421,7 +423,7 @@ var PLC = (function (_super) {
     };
     PLC.discover = function (timeout, options) {
         if (timeout === void 0) { timeout = 200; }
-        var _a = options || {}, _b = _a.family, family = _b === void 0 ? "IPv4" : _b, onFound = _a.onFound, onError = _a.onError, socketOptions = __rest(_a, ["family", "onFound", "onError"]);
+        var _a = options || {}, _b = _a.family, family = _b === void 0 ? "IPv4" : _b, _c = _a.port, port = _c === void 0 ? 44818 : _c, onFound = _a.onFound, onError = _a.onError, socketOptions = __rest(_a, ["family", "port", "onFound", "onError"]);
         if (family !== "IPv4" && family !== "IPv6")
             throw new EvalError("Incorrect ip family, must be IPv4 or IPv6");
         var devices = [];
@@ -429,7 +431,6 @@ var PLC = (function (_super) {
         var platform = os.platform();
         return new Bluebird(function (resolve, reject) {
             var request = EIPSocket.buildListIdentity();
-            var port = PLC.defaultOptions.port || 44818;
             var addresses = flatten(Object.values(os.networkInterfaces()))
                 .filter(function (i) { return i.family === family && !i.internal; })
                 .map(function (i) { return i.address; });
@@ -510,13 +511,18 @@ var PLC = (function (_super) {
     PLC.prototype._getPinMapping = function (str, pin) {
         var _this = this;
         return Bluebird.try(function () {
-            if (!_this._replacePin || !_this._pingMapping)
+            if (!_this.replacePin || !_this._pingMapping)
                 throw new PinMappingError("invalid replacePin or pingMaping, please check, this.replacePin or this.pinMapping");
-            try {
-                return _this.replacePin && _this.replacePin(str, pin);
+            else if (!!_this.replacePin) {
+                try {
+                    return _this.replacePin(str, pin);
+                }
+                catch (error) {
+                    throw error;
+                }
             }
-            catch (error) {
-                throw error;
+            else {
+                throw new PinMappingError("invalid replacePin or pingMaping, please check, this.replacePin");
             }
         });
     };
