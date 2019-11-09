@@ -43,7 +43,7 @@ or
 ## Example with events, read and write tags
 
 ```js
-const PLC = require("node-logix");
+const PLC = require("node-logix").default;
 
 const comm = new PLC("192.168.100.9");
 
@@ -71,7 +71,7 @@ comm.on("disconnect", reason => {
 Find devices using dgram socket
 
 ```js
-const PLC = require("node-logix");
+const PLC = require("node-logix").default;
 
 PLC.discover().then(devices => {
   console.log("Devices:", devices);
