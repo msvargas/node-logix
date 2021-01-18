@@ -22,7 +22,7 @@ Nodejs package to handle PLC as Micro800 of Allen Bradley or Logix
 
 - Support Micro800
 
-- [API Documentation](http://punisher97.github.io/node-logix/)
+- [API Documentation](http://msvargas.github.io/node-logix/)
 
 ## Install package
 
@@ -153,7 +153,7 @@ function _replacePin(str = "", pin) {
 
 ## More Examples
 
-- Own: [NodeJS](https://github.com/punisher97/node-logix/tree/master/examples)
+- Own: [NodeJS](https://github.com/msvargas/node-logix/tree/master/examples)
 
 - Third-party: [Python](https://github.com/dmroeder/pylogix/tree/master/examples)
 
